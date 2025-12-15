@@ -49,21 +49,37 @@
       border: none;
       cursor: pointer;
       margin-top: 5px;
-      transition: background 0.2s;
+      transition: background 0.3s, color 0.3s;
     }
 
     button:hover {
       opacity: 0.9;
     }
 
-    /* Reset button specific */
     #resetBtn {
       background: #1d4ed8;
       color: white;
     }
-    #resetBtn.clicked {
-      background: #facc15;
-      color: #000;
+
+    #resetBtn.defenderClicked {
+      background: #3b82f6; /* blue */
+      color: white;
+    }
+
+    #resetBtn.attackerClicked {
+      background: #ef4444; /* red */
+      color: white;
+    }
+
+    #resetBtn.bothClicked {
+      background: #16a34a; /* green */
+      color: white;
+    }
+
+    #resetIndicator {
+      text-align: center;
+      font-weight: bold;
+      margin-top: 5px;
     }
 
     .phase {
@@ -166,6 +182,7 @@
 
   <div id="playerIndicator" class="phase"></div>
   <div id="phase" class="phase">Enter a room code</div>
+  <div id="resetIndicator"></div>
 
   <div class="heroes" id="heroes"></div>
 
@@ -216,6 +233,7 @@ const p1List = document.getElementById("p1");
 const p2List = document.getElementById("p2");
 const playerIndicator = document.getElementById("playerIndicator");
 const resetBtn = document.getElementById("resetBtn");
+const resetIndicator = document.getElementById("resetIndicator");
 
 let room = null;
 let player = null;
@@ -236,11 +254,13 @@ window.joinRoom = async () => {
   let data = snap.val();
 
   if (!data) {
-    await set(roomRef, { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" } });
+    await set(roomRef, { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" }, resetRequests: {} });
     player = "defender";
-    data = { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" } };
+    data = { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" }, resetRequests: {} };
   } else {
     if (!data.players) data.players = {};
+    if (!data.resetRequests) data.resetRequests = {};
+
     // Assign role if not in players
     if (!data.players[sessionId]) {
       if (!Object.values(data.players).includes("defender")) data.players[sessionId] = "defender";
@@ -258,6 +278,8 @@ window.joinRoom = async () => {
     const newData = snap.val();
     if (!newData.p1) newData.p1 = [];
     if (!newData.p2) newData.p2 = [];
+    if (!newData.resetRequests) newData.resetRequests = {};
+    if (!newData.players) newData.players = {};
     render(newData);
   });
 
@@ -286,6 +308,24 @@ function render(data) {
     d.onclick = () => banHero(hero, data);
     heroDiv.appendChild(d);
   });
+
+  // Reset indicator logic
+  const resetRequests = data.resetRequests || {};
+  const clickedPlayers = Object.keys(resetRequests)
+    .filter(id => resetRequests[id])
+    .map(id => data.players[id] || "Unknown");
+
+  resetIndicator.textContent = clickedPlayers.length > 0 ? `Reset clicked by: ${clickedPlayers.join(", ")}` : "";
+
+  // Button color based on clicks
+  resetBtn.classList.remove("defenderClicked", "attackerClicked", "bothClicked");
+  if (clickedPlayers.length === 1) {
+    const firstId = Object.keys(resetRequests).find(id => resetRequests[id]);
+    const firstPlayer = data.players[firstId];
+    resetBtn.classList.add(firstPlayer === "defender" ? "defenderClicked" : "attackerClicked");
+  } else if (clickedPlayers.length >= 2) {
+    resetBtn.classList.add("bothClicked");
+  }
 }
 
 function banHero(hero, data) {
@@ -299,16 +339,15 @@ function banHero(hero, data) {
   }
   if (player === "attacker" && (data.p2 || []).length < 2) {
     updates.p2 = [...(data.p2 || []), hero];
-    if (updates.p2.length === 2) updates.phase = "done";
+    // remove phase = done to allow reset
   }
 
   update(ref(db, `rooms/${room}`), updates);
 }
 
-// ✅ Instant Reset
+// Reset button
 async function requestReset() {
   if (!room || !player) return alert("Join a room first");
-
   const roomRef = ref(db, `rooms/${room}`);
 
   runTransaction(roomRef, (data) => {
@@ -316,21 +355,19 @@ async function requestReset() {
     if (!data.p1) data.p1 = [];
     if (!data.p2) data.p2 = [];
     if (!data.players) data.players = {};
+    if (!data.resetRequests) data.resetRequests = {};
 
-    // Register player (optional)
+    // Mark player clicked
     data.players[sessionId] = player;
+    data.resetRequests[sessionId] = true;
 
-    // Reset immediately
+    // Reset bans immediately
     data.p1 = [];
     data.p2 = [];
     data.phase = "defender";
 
     return { ...data };
   });
-
-  // Show yellow highlight briefly
-  resetBtn.classList.add("clicked");
-  setTimeout(() => resetBtn.classList.remove("clicked"), 500);
 }
 </script>
 
