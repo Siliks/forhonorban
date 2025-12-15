@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>For Honor Pick & Ban</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>For Honor – Online Pick & Ban</title>
+
   <style>
     body {
       margin: 0;
@@ -22,7 +23,6 @@
     h1 {
       margin: 0;
       font-size: 2rem;
-      letter-spacing: 1px;
     }
 
     .container {
@@ -31,10 +31,35 @@
       margin: auto;
     }
 
+    .room {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    input {
+      padding: 8px;
+      border-radius: 6px;
+      border: none;
+      margin-right: 8px;
+    }
+
+    button {
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: none;
+      background: #1d4ed8;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #2563eb;
+    }
+
     .phase {
       text-align: center;
       margin-bottom: 20px;
-      font-size: 1.2rem;
+      font-size: 1.3rem;
       font-weight: bold;
       color: #93c5fd;
     }
@@ -52,8 +77,8 @@
       text-align: center;
       cursor: pointer;
       border-radius: 10px;
-      transition: transform 0.15s, border-color 0.15s, background 0.15s;
       user-select: none;
+      transition: transform 0.15s, border-color 0.15s;
     }
 
     .hero:hover {
@@ -68,22 +93,14 @@
       cursor: not-allowed;
     }
 
-    .hero.picked {
-      background: #052e16;
-      border-color: #22c55e;
-      color: #bbf7d0;
-      cursor: not-allowed;
-    }
-
     .summary {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 30px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
       gap: 20px;
+      margin-top: 30px;
     }
 
     .box {
-      flex: 1;
       background: #020617;
       border: 2px solid #1e293b;
       border-radius: 12px;
@@ -93,7 +110,6 @@
     .box h2 {
       margin-top: 0;
       text-align: center;
-      font-size: 1.2rem;
       color: #93c5fd;
     }
 
@@ -108,125 +124,130 @@
       border-bottom: 1px solid #1e293b;
       text-align: center;
     }
-
-    button {
-      margin-top: 20px;
-      width: 100%;
-      padding: 12px;
-      font-size: 1rem;
-      background: #1d4ed8;
-      border: none;
-      color: white;
-      border-radius: 10px;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #2563eb;
-    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>For Honor – Pick & Ban System</h1>
-  </header>
 
-  <div class="container">
-    <div id="phase" class="phase">Phase: Ban Heroes</div>
+<header>
+  <h1>For Honor – Online Pick & Ban</h1>
+</header>
 
-    <div class="heroes" id="heroes"></div>
-
-    <div class="summary">
-      <div class="box">
-        <h2>Banned Heroes</h2>
-        <ul id="bannedList"></ul>
-      </div>
-      <div class="box">
-        <h2>Picked Heroes</h2>
-        <ul id="pickedList"></ul>
-      </div>
-    </div>
-
-    <button onclick="resetDraft()">Reset Draft</button>
+<div class="container">
+  <div class="room">
+    <input id="roomId" placeholder="Room code" />
+    <button onclick="joinRoom()">Join / Create Room</button>
   </div>
 
-  <script>
-    const heroes = [
-      "Warden", "Peacekeeper", "Centurion", "Black Prior",
-      "Conqueror", "Lawbringer", "Gladiator", "Warmonger",
-      "Raider", "Berserker", "Highlander", "Jormungandr",
-      "Valkyrie", "Warlord", "Shaman",
-      "Kensei", "Orochi", "Shugoki", "Nobushi",
-      "Shinobi", "Aramusha", "Hitokiri", "Kyoshin",
-      "Tiandi", "Jiang Jun", "Nuxia", "Shaolin",
-      "Pirate", "Medjay", "Afeera", "Ocelotl"
-    ];
+  <div id="phase" class="phase">Enter a room code</div>
 
-    const heroContainer = document.getElementById("heroes");
-    const bannedList = document.getElementById("bannedList");
-    const pickedList = document.getElementById("pickedList");
-    const phaseText = document.getElementById("phase");
+  <div class="heroes" id="heroes"></div>
 
-    let phase = "ban";
-    let bans = [];
-    let picks = [];
+  <div class="summary">
+    <div class="box">
+      <h2>Player 1 Bans</h2>
+      <ul id="p1"></ul>
+    </div>
+    <div class="box">
+      <h2>Player 2 Bans</h2>
+      <ul id="p2"></ul>
+    </div>
+  </div>
+</div>
 
-    function renderHeroes() {
-      heroContainer.innerHTML = "";
-      heroes.forEach(hero => {
-        const div = document.createElement("div");
-        div.className = "hero";
-        div.textContent = hero;
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        if (bans.includes(hero)) div.classList.add("banned");
-        if (picks.includes(hero)) div.classList.add("picked");
+  // ✅ YOUR FIREBASE CONFIG (ALREADY FILLED IN)
+  const firebaseConfig = {
+    apiKey: "AIzaSyBeS-SDFEkQ-eh8EeqvI0qK2so020ddfA",
+    authDomain: "forhonorban.firebaseapp.com",
+    databaseURL: "https://forhonorban-default-rtdb.firebaseio.com",
+    projectId: "forhonorban",
+    storageBucket: "forhonorban.appspot.com",
+    messagingSenderId: "878364292748",
+    appId: "1:878364292748:web:ab3bd412f2368a0dc22da9"
+  };
 
-        div.onclick = () => selectHero(hero);
-        heroContainer.appendChild(div);
-      });
-    }
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
 
-    function selectHero(hero) {
-      if (bans.includes(hero) || picks.includes(hero)) return;
+  const heroes = [
+    "Warden","Peacekeeper","Centurion","Black Prior",
+    "Conqueror","Lawbringer","Gladiator","Warmonger",
+    "Raider","Berserker","Highlander","Jormungandr",
+    "Valkyrie","Warlord","Shaman",
+    "Kensei","Orochi","Shugoki","Nobushi",
+    "Shinobi","Aramusha","Hitokiri","Kyoshin",
+    "Tiandi","Jiang Jun","Nuxia","Shaolin",
+    "Pirate","Medjay","Afeera","Ocelotl"
+  ];
 
-      if (phase === "ban") {
-        bans.push(hero);
-        updateList(bannedList, bans);
-        if (bans.length >= 4) {
-          phase = "pick";
-          phaseText.textContent = "Phase: Pick Heroes";
-        }
-      } else {
-        picks.push(hero);
-        updateList(pickedList, picks);
-        if (picks.length >= 4) {
-          phaseText.textContent = "Draft Complete";
-        }
+  const heroDiv = document.getElementById("heroes");
+  const phaseText = document.getElementById("phase");
+  const p1List = document.getElementById("p1");
+  const p2List = document.getElementById("p2");
+
+  let room = null;
+  let player = null;
+
+  window.joinRoom = () => {
+    room = document.getElementById("roomId").value.trim();
+    if (!room) return alert("Enter a room code");
+
+    const roomRef = ref(db, `rooms/${room}`);
+
+    onValue(roomRef, snap => {
+      if (!snap.exists()) {
+        set(roomRef, { phase: "p1", p1: [], p2: [] });
+        player = "p1";
+      } else if (!player) {
+        player = "p2";
+      }
+      render(snap.val());
+    });
+  };
+
+  function render(data) {
+    p1List.innerHTML = data.p1.map(h => `<li>${h}</li>`).join("");
+    p2List.innerHTML = data.p2.map(h => `<li>${h}</li>`).join("");
+
+    if (data.phase === "p1") phaseText.textContent = "Player 1 banning";
+    else if (data.phase === "p2") phaseText.textContent = "Player 2 banning";
+    else phaseText.textContent = "Ban phase complete";
+
+    heroDiv.innerHTML = "";
+    heroes.forEach(hero => {
+      const d = document.createElement("div");
+      d.className = "hero";
+      d.textContent = hero;
+
+      if (data.p1.includes(hero) || data.p2.includes(hero)) {
+        d.classList.add("banned");
       }
 
-      renderHeroes();
+      d.onclick = () => banHero(hero, data);
+      heroDiv.appendChild(d);
+    });
+  }
+
+  function banHero(hero, data) {
+    if (data.p1.includes(hero) || data.p2.includes(hero)) return;
+    if (data.phase !== player) return alert("Not your turn");
+
+    const updates = {};
+    if (player === "p1" && data.p1.length < 2) {
+      updates.p1 = [...data.p1, hero];
+      if (updates.p1.length === 2) updates.phase = "p2";
+    }
+    if (player === "p2" && data.p2.length < 2) {
+      updates.p2 = [...data.p2, hero];
+      if (updates.p2.length === 2) updates.phase = "done";
     }
 
-    function updateList(list, items) {
-      list.innerHTML = "";
-      items.forEach(item => {
-        const li = document.createElement("li");
-        li.textContent = item;
-        list.appendChild(li);
-      });
-    }
+    update(ref(db, `rooms/${room}`), updates);
+  }
+</script>
 
-    function resetDraft() {
-      phase = "ban";
-      bans = [];
-      picks = [];
-      phaseText.textContent = "Phase: Ban Heroes";
-      updateList(bannedList, bans);
-      updateList(pickedList, picks);
-      renderHeroes();
-    }
-
-    renderHeroes();
-  </script>
 </body>
 </html>
