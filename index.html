@@ -15,9 +15,6 @@ input { padding: 8px; border-radius: 6px; border: none; margin-right: 8px; }
 button { padding: 10px 14px; border-radius: 8px; border: none; cursor: pointer; margin-top: 5px; transition: background 0.3s, color 0.3s; }
 button:hover { opacity: 0.9; }
 #resetBtn { background: #1d4ed8; color: white; }
-#resetBtn.defenderClicked { background: #3b82f6; color: white; }
-#resetBtn.attackerClicked { background: #ef4444; color: white; }
-#resetBtn.bothClicked { background: #16a34a; color: white; }
 #resetIndicator { text-align: center; font-weight: bold; margin-top: 5px; }
 .phase { text-align: center; margin-bottom: 20px; font-size: 1.3rem; font-weight: bold; color: #93c5fd; }
 .heroes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; }
@@ -57,7 +54,6 @@ button.glow { animation: glow 0.8s ease-in-out; }
 
 <div id="playerIndicator" class="phase"></div>
 <div id="phase" class="phase">Enter a room code</div>
-<div id="resetIndicator"></div>
 
 <div class="heroes" id="heroes"></div>
 
@@ -103,7 +99,6 @@ const p1List = document.getElementById("p1");
 const p2List = document.getElementById("p2");
 const playerIndicator = document.getElementById("playerIndicator");
 const resetBtn = document.getElementById("resetBtn");
-const resetIndicator = document.getElementById("resetIndicator");
 
 let room = null;
 let player = null;
@@ -119,12 +114,11 @@ window.joinRoom = async () => {
   let data = snap.val();
 
   if (!data) {
-    await set(roomRef, { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" }, resetRequests: {} });
+    await set(roomRef, { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" } });
     player = "defender";
-    data = { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" }, resetRequests: {} };
+    data = { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" } };
   } else {
     if (!data.players) data.players = {};
-    if (!data.resetRequests) data.resetRequests = {};
     if (!data.players[sessionId]) {
       if (!Object.values(data.players).includes("defender")) data.players[sessionId] = "defender";
       else if (!Object.values(data.players).includes("attacker")) data.players[sessionId] = "attacker";
@@ -140,7 +134,6 @@ window.joinRoom = async () => {
     const newData = snap.val();
     if (!newData.p1) newData.p1 = [];
     if (!newData.p2) newData.p2 = [];
-    if (!newData.resetRequests) newData.resetRequests = {};
     if (!newData.players) newData.players = {};
     render(newData);
   });
@@ -168,13 +161,6 @@ function render(data) {
     d.onclick = () => banHero(hero,data);
     heroDiv.appendChild(d);
   });
-
-  const resetRequests = data.resetRequests || {};
-  const clickedPlayers = Object.keys(resetRequests).filter(id => resetRequests[id]).map(id => data.players[id] || "Unknown");
-  resetIndicator.textContent = clickedPlayers.length ? `Reset clicked by: ${clickedPlayers.join(", ")}` : "";
-  resetBtn.classList.remove("defenderClicked","attackerClicked","bothClicked");
-  if (clickedPlayers.length === 1) resetBtn.classList.add(clickedPlayers[0] === "defender" ? "defenderClicked":"attackerClicked");
-  else if (clickedPlayers.length >= 2) resetBtn.classList.add("bothClicked");
 }
 
 function banHero(hero,data){
@@ -194,7 +180,7 @@ function banHero(hero,data){
   update(ref(db,`rooms/${room}`),updates);
 }
 
-// Reset button with glow
+// Reset button simplified: any single click resets
 async function requestReset(){
   if(!room||!player) return alert("Join a room first");
   const roomRef = ref(db,`rooms/${room}`);
@@ -203,11 +189,11 @@ async function requestReset(){
     data.p1=[];
     data.p2=[];
     data.phase="defender"; // reset phase
-    data.resetRequests={};
     if(!data.players) data.players={};
     data.players[sessionId]=player;
     return {...data};
   }).then(()=>{
+    // glow effect for feedback
     resetBtn.classList.add("glow");
     setTimeout(()=>resetBtn.classList.remove("glow"),800);
   });
