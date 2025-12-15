@@ -127,6 +127,7 @@ const resetIndicator = document.getElementById("resetIndicator");
 
 let room = null;
 let player = null;
+let resetVotes = {};
 
 // Session ID
 let sessionId = localStorage.getItem("sessionId");
@@ -135,7 +136,7 @@ if (!sessionId) {
   localStorage.setItem("sessionId", sessionId);
 }
 
-// Hero list — added the four new characters only
+// Hero list (original + 4 new characters)
 const heroes = [
   "Warden","Peacekeeper","Centurion","Black Prior",
   "Conqueror","Lawbringer","Gladiator","Warmonger",
@@ -145,7 +146,7 @@ const heroes = [
   "Shinobi","Aramusha","Hitokiri","Kyoshin",
   "Tiandi","Jiang Jun","Nuxia","Shaolin",
   "Pirate","Medjay","Afeera","Ocelotl",
-  "Sohei", "Varangian Guard", "Khatun", "Virtuosa"
+  "Sohei","Varangian Guard","Khatun","Virtuosa"
 ];
 
 // --- JOIN ROOM ---
@@ -236,7 +237,7 @@ function banHero(hero, data) {
   update(ref(db, `rooms/${room}`), updates);
 }
 
-// --- RESET ---
+// --- RESET (requires both players) ---
 function requestReset() {
   if (!room || !player) return alert("Join a room first");
 
@@ -246,11 +247,10 @@ function requestReset() {
     if (!data.players) data.players = {};
     if (!data.resetRequests) data.resetRequests = {};
 
-    data.players[sessionId] = player;
     data.resetRequests[sessionId] = true;
 
     const allRequested = Object.keys(data.players).every(id => data.resetRequests[id]);
-    if (allRequested) {
+    if(allRequested) {
       data.p1 = [];
       data.p2 = [];
       data.phase = "defender";
