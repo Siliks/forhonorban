@@ -1,173 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>For Honor – Online Pick & Ban</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>For Honor – Online Pick & Ban</title>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
-      background: #0f172a;
-      color: #e5e7eb;
-    }
+<style>
+body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #0f172a; color: #e5e7eb; }
+header { padding: 20px; text-align: center; background: #020617; border-bottom: 2px solid #1e293b; }
+h1 { margin: 0; font-size: 2rem; }
+.container { padding: 20px; max-width: 1200px; margin: auto; }
+.room { text-align: center; margin-bottom: 20px; }
+input { padding: 8px; border-radius: 6px; border: none; margin-right: 8px; }
+button { padding: 10px 14px; border-radius: 8px; border: none; cursor: pointer; margin-top: 5px; transition: background 0.3s, color 0.3s; }
+button:hover { opacity: 0.9; }
+#resetBtn { background: #1d4ed8; color: white; }
+#resetBtn.defenderClicked { background: #3b82f6; color: white; }
+#resetBtn.attackerClicked { background: #ef4444; color: white; }
+#resetBtn.bothClicked { background: #16a34a; color: white; }
+#resetIndicator { text-align: center; font-weight: bold; margin-top: 5px; }
+.phase { text-align: center; margin-bottom: 20px; font-size: 1.3rem; font-weight: bold; color: #93c5fd; }
+.heroes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; }
+.hero { background: #020617; border: 2px solid #1e293b; padding: 12px; text-align: center; cursor: pointer; border-radius: 10px; user-select: none; transition: transform 0.15s, border-color 0.15s; }
+.hero:hover { transform: scale(1.05); border-color: #60a5fa; }
+.summary { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px; }
+.box { background: #020617; border: 2px solid #1e293b; border-radius: 12px; padding: 15px; }
+.box h2 { margin-top: 0; text-align: center; color: #93c5fd; }
+ul { list-style: none; padding: 0; margin: 0; }
+li { padding: 6px 0; border-bottom: 1px solid #1e293b; text-align: center; }
+.defender-ban { color: #60a5fa; }
+.attacker-ban { color: #ef4444; }
+.hero.banned.defender { background-color: #1e40af; border-color: #60a5fa; color: #93c5fd; cursor: not-allowed; }
+.hero.banned.attacker { background-color: #991b1b; border-color: #ef4444; color: #fecaca; cursor: not-allowed; }
 
-    header {
-      padding: 20px;
-      text-align: center;
-      background: #020617;
-      border-bottom: 2px solid #1e293b;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: 2rem;
-    }
-
-    .container {
-      padding: 20px;
-      max-width: 1200px;
-      margin: auto;
-    }
-
-    .room {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    input {
-      padding: 8px;
-      border-radius: 6px;
-      border: none;
-      margin-right: 8px;
-    }
-
-    button {
-      padding: 10px 14px;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-      margin-top: 5px;
-      transition: background 0.3s, color 0.3s;
-    }
-
-    button:hover {
-      opacity: 0.9;
-    }
-
-    #resetBtn {
-      background: #1d4ed8;
-      color: white;
-    }
-
-    #resetBtn.defenderClicked { background: #3b82f6; color: white; }
-    #resetBtn.attackerClicked { background: #ef4444; color: white; }
-    #resetBtn.bothClicked { background: #16a34a; color: white; }
-
-    #resetIndicator {
-      text-align: center;
-      font-weight: bold;
-      margin-top: 5px;
-    }
-
-    .phase {
-      text-align: center;
-      margin-bottom: 20px;
-      font-size: 1.3rem;
-      font-weight: bold;
-      color: #93c5fd;
-    }
-
-    .heroes {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 15px;
-    }
-
-    .hero {
-      background: #020617;
-      border: 2px solid #1e293b;
-      padding: 12px;
-      text-align: center;
-      cursor: pointer;
-      border-radius: 10px;
-      user-select: none;
-      transition: transform 0.15s, border-color 0.15s;
-    }
-
-    .hero:hover {
-      transform: scale(1.05);
-      border-color: #60a5fa;
-    }
-
-    .summary {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      margin-top: 30px;
-    }
-
-    .box {
-      background: #020617;
-      border: 2px solid #1e293b;
-      border-radius: 12px;
-      padding: 15px;
-    }
-
-    .box h2 {
-      margin-top: 0;
-      text-align: center;
-      color: #93c5fd;
-    }
-
-    ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    li {
-      padding: 6px 0;
-      border-bottom: 1px solid #1e293b;
-      text-align: center;
-    }
-
-    .defender-ban { color: #60a5fa; }
-    .attacker-ban { color: #ef4444; }
-    .hero.banned.defender { background-color: #1e40af; border-color: #60a5fa; color: #93c5fd; cursor: not-allowed; }
-    .hero.banned.attacker { background-color: #991b1b; border-color: #ef4444; color: #fecaca; cursor: not-allowed; }
-  </style>
+/* Glow animation for reset button */
+@keyframes glow {
+  0% { box-shadow: 0 0 0px #fff; }
+  50% { box-shadow: 0 0 15px #facc15; }
+  100% { box-shadow: 0 0 0px #fff; }
+}
+button.glow { animation: glow 0.8s ease-in-out; }
+</style>
 </head>
 <body>
 
 <header>
-  <h1>For Honor – Online Pick & Ban</h1>
+<h1>For Honor – Online Pick & Ban</h1>
 </header>
 
 <div class="container">
-  <div class="room">
-    <input id="roomId" placeholder="Room code" />
-    <button onclick="joinRoom()">Join / Create Room</button>
-    <button id="resetBtn" onclick="requestReset()">Reset Bans</button>
+<div class="room">
+  <input id="roomId" placeholder="Room code" />
+  <button onclick="joinRoom()">Join / Create Room</button>
+  <button id="resetBtn" onclick="requestReset()">Reset Bans</button>
+</div>
+
+<div id="playerIndicator" class="phase"></div>
+<div id="phase" class="phase">Enter a room code</div>
+<div id="resetIndicator"></div>
+
+<div class="heroes" id="heroes"></div>
+
+<div class="summary">
+  <div class="box">
+    <h2>Defender Bans</h2>
+    <ul id="p1"></ul>
   </div>
-
-  <div id="playerIndicator" class="phase"></div>
-  <div id="phase" class="phase">Enter a room code</div>
-  <div id="resetIndicator"></div>
-
-  <div class="heroes" id="heroes"></div>
-
-  <div class="summary">
-    <div class="box">
-      <h2>Defender Bans</h2>
-      <ul id="p1"></ul>
-    </div>
-    <div class="box">
-      <h2>Attacker Bans</h2>
-      <ul id="p2"></ul>
-    </div>
+  <div class="box">
+    <h2>Attacker Bans</h2>
+    <ul id="p2"></ul>
   </div>
+</div>
 </div>
 
 <script type="module">
@@ -205,10 +108,7 @@ const resetIndicator = document.getElementById("resetIndicator");
 let room = null;
 let player = null;
 let sessionId = localStorage.getItem("sessionId");
-if (!sessionId) {
-  sessionId = Math.random().toString(36).substring(2, 10);
-  localStorage.setItem("sessionId", sessionId);
-}
+if (!sessionId) { sessionId = Math.random().toString(36).substring(2,10); localStorage.setItem("sessionId", sessionId); }
 
 window.joinRoom = async () => {
   room = document.getElementById("roomId").value.trim();
@@ -263,52 +163,53 @@ function render(data) {
     const d = document.createElement("div");
     d.className = "hero";
     d.textContent = hero;
-    if ((data.p1 || []).includes(hero)) d.classList.add("banned", "defender");
-    else if ((data.p2 || []).includes(hero)) d.classList.add("banned", "attacker");
-    d.onclick = () => banHero(hero, data);
+    if ((data.p1 || []).includes(hero)) d.classList.add("banned","defender");
+    else if ((data.p2 || []).includes(hero)) d.classList.add("banned","attacker");
+    d.onclick = () => banHero(hero,data);
     heroDiv.appendChild(d);
   });
 
-  // Reset UI
   const resetRequests = data.resetRequests || {};
   const clickedPlayers = Object.keys(resetRequests).filter(id => resetRequests[id]).map(id => data.players[id] || "Unknown");
   resetIndicator.textContent = clickedPlayers.length ? `Reset clicked by: ${clickedPlayers.join(", ")}` : "";
   resetBtn.classList.remove("defenderClicked","attackerClicked","bothClicked");
-  if (clickedPlayers.length === 1) resetBtn.classList.add(clickedPlayers[0] === "defender" ? "defenderClicked" : "attackerClicked");
+  if (clickedPlayers.length === 1) resetBtn.classList.add(clickedPlayers[0] === "defender" ? "defenderClicked":"attackerClicked");
   else if (clickedPlayers.length >= 2) resetBtn.classList.add("bothClicked");
 }
 
-function banHero(hero, data) {
-  if (data.phase === "complete") return; // lock banning after round
-  if ((data.p1 || []).includes(hero) || (data.p2 || []).includes(hero)) return;
+function banHero(hero,data){
+  if (data.phase === "complete") return;
+  if ((data.p1||[]).includes(hero) || (data.p2||[]).includes(hero)) return;
   if (data.phase !== player) return alert("Not your turn");
 
   const updates = {};
-  if (player === "defender" && (data.p1 || []).length < 2) {
-    updates.p1 = [...(data.p1 || []), hero];
-    if (updates.p1.length === 2) updates.phase = "attacker";
+  if(player==="defender"&&(data.p1||[]).length<2){
+    updates.p1=[...(data.p1||[]),hero];
+    if(updates.p1.length===2) updates.phase="attacker";
   }
-  if (player === "attacker" && (data.p2 || []).length < 2) {
-    updates.p2 = [...(data.p2 || []), hero];
-    if (updates.p2.length === 2) updates.phase = "complete"; // lock after both banned
+  if(player==="attacker"&&(data.p2||[]).length<2){
+    updates.p2=[...(data.p2||[]),hero];
+    if(updates.p2.length===2) updates.phase="complete"; // lock
   }
-  update(ref(db, `rooms/${room}`), updates);
+  update(ref(db,`rooms/${room}`),updates);
 }
 
-// Reset button
-async function requestReset() {
-  if (!room || !player) return alert("Join a room first");
-  const roomRef = ref(db, `rooms/${room}`);
-
-  runTransaction(roomRef, (data) => {
-    if (!data) return data;
-    data.p1 = [];
-    data.p2 = [];
-    data.phase = "defender"; // reset phase
-    data.resetRequests = {};  // clear previous clicks
-    if (!data.players) data.players = {};
-    data.players[sessionId] = player;
-    return { ...data };
+// Reset button with glow
+async function requestReset(){
+  if(!room||!player) return alert("Join a room first");
+  const roomRef = ref(db,`rooms/${room}`);
+  runTransaction(roomRef,data=>{
+    if(!data) return data;
+    data.p1=[];
+    data.p2=[];
+    data.phase="defender"; // reset phase
+    data.resetRequests={};
+    if(!data.players) data.players={};
+    data.players[sessionId]=player;
+    return {...data};
+  }).then(()=>{
+    resetBtn.classList.add("glow");
+    setTimeout(()=>resetBtn.classList.remove("glow"),800);
   });
 }
 </script>
