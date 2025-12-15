@@ -14,7 +14,6 @@ h1 { margin: 0; font-size: 2rem; }
 input { padding: 8px; border-radius: 6px; border: none; margin-right: 8px; }
 button { padding: 10px 14px; border-radius: 8px; border: none; cursor: pointer; margin-top: 5px; transition: background 0.3s, color 0.3s; }
 button:hover { opacity: 0.9; }
-#resetBtn { background: #1d4ed8; color: white; }
 .phase { text-align: center; margin-bottom: 20px; font-size: 1.3rem; font-weight: bold; color: #93c5fd; }
 .heroes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; }
 .hero { background: #020617; border: 2px solid #1e293b; padding: 12px; text-align: center; cursor: pointer; border-radius: 10px; user-select: none; transition: transform 0.15s, border-color 0.15s; }
@@ -30,6 +29,7 @@ li { padding: 6px 0; border-bottom: 1px solid #1e293b; text-align: center; }
 .hero.banned.attacker { background-color: #991b1b; border-color: #ef4444; color: #fecaca; cursor: not-allowed; }
 @keyframes glow { 0% { box-shadow: 0 0 0px #fff; } 50% { box-shadow: 0 0 15px #facc15; } 100% { box-shadow: 0 0 0px #fff; } }
 button.glow { animation: glow 0.8s ease-in-out; }
+#newRoundContainer { text-align: center; margin-top: 15px; }
 </style>
 </head>
 <body>
@@ -42,7 +42,6 @@ button.glow { animation: glow 0.8s ease-in-out; }
 <div class="room">
   <input id="roomId" placeholder="Room code" />
   <button onclick="joinRoom()">Join / Create Room</button>
-  <button id="resetBtn" onclick="requestReset()">Reset Draft</button>
 </div>
 
 <div id="playerIndicator" class="phase"></div>
@@ -60,6 +59,8 @@ button.glow { animation: glow 0.8s ease-in-out; }
     <ul id="p2"></ul>
   </div>
 </div>
+
+<div id="newRoundContainer"></div>
 </div>
 
 <script type="module">
@@ -91,7 +92,7 @@ const phaseText = document.getElementById("phase");
 const p1List = document.getElementById("p1");
 const p2List = document.getElementById("p2");
 const playerIndicator = document.getElementById("playerIndicator");
-const resetBtn = document.getElementById("resetBtn");
+const newRoundContainer = document.getElementById("newRoundContainer");
 
 let room = null;
 let player = null;
@@ -142,7 +143,10 @@ function render(data) {
 
   if (data.phase === "defender") phaseText.textContent = "Defender banning";
   else if (data.phase === "attacker") phaseText.textContent = "Attacker banning";
-  else if (data.phase === "complete") phaseText.textContent = "Round complete - click Reset to clear bans";
+  else if (data.phase === "complete") {
+    phaseText.textContent = "Round complete! Click below to start a new round.";
+    newRoundContainer.innerHTML = `<button onclick="startNewRound()">Start New Round</button>`;
+  } else newRoundContainer.innerHTML = "";
 
   heroDiv.innerHTML = "";
   heroes.forEach(hero => {
@@ -172,19 +176,18 @@ function banHero(hero,data){
   update(ref(db,`rooms/${room}`),updates);
 }
 
-// Reset Draft logic: works even if phase is "complete", keeps phase unchanged
-async function requestReset(){
-  if(!room||!player) return alert("Join a room first");
+// Start new round function
+function startNewRound() {
+  if(!room) return alert("Join a room first");
   const roomRef = ref(db, `rooms/${room}`);
 
   runTransaction(roomRef, data => {
     if(!data) return data;
-    // Clear bans
     data.p1 = [];
     data.p2 = [];
-    // Keep phase unchanged
+    data.phase = "defender"; // reset to defender phase
     return data;
-  }).then((result) => {
+  }).then(result => {
     const data = result.snapshot.val() || {};
     render({
       p1: [],
@@ -192,13 +195,8 @@ async function requestReset(){
       phase: data.phase || "defender",
       players: data.players || { [sessionId]: player }
     });
-
-    // Glow effect
-    resetBtn.classList.add("glow");
-    setTimeout(()=>resetBtn.classList.remove("glow"), 800);
   });
 }
 </script>
-
 </body>
 </html>
