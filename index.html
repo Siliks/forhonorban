@@ -33,11 +33,12 @@ const heroDiv = document.getElementById("heroes");
 const phaseText = document.getElementById("phase");
 const p1List = document.getElementById("p1");
 const p2List = document.getElementById("p2");
+const playerIndicator = document.getElementById("playerIndicator");
 
 let room = null;
 let player = null;
 
-// 🔹 Join or create a room
+// 🔹 Join / create room
 window.joinRoom = async () => {
   room = document.getElementById("roomId").value.trim();
   if (!room) return alert("Enter a room code");
@@ -47,38 +48,48 @@ window.joinRoom = async () => {
   const data = snap.val();
 
   if (!data) {
-    // Room doesn't exist, create it and assign P1
-    await set(roomRef, { phase: "p1", p1: [], p2: [] });
-    player = "p1";
+    await set(roomRef, { phase: "defender", p1: [], p2: [] });
+    player = "defender";
   } else if (!data.p1 || data.p1.length === 0) {
-    player = "p1";
+    player = "defender";
   } else if (!data.p2 || data.p2.length === 0) {
-    player = "p2";
+    player = "attacker";
   } else {
     return alert("Room is full!");
   }
 
-  // Start listening for changes
-  onValue(roomRef, snap => render(snap.val()));
+  // Listen for real-time updates
+  onValue(roomRef, snap => {
+    const newData = snap.val();
+    render(newData);
+  });
 };
 
-// 🔹 Render the UI
+// 🔹 Render UI
 function render(data) {
-  p1List.innerHTML = data.p1.map(h => `<li>${h}</li>`).join("");
-  p2List.innerHTML = data.p2.map(h => `<li>${h}</li>`).join("");
+  // Player indicator
+  playerIndicator.textContent = player ? `You are ${player.toUpperCase()}` : "";
 
-  if (data.phase === "p1") phaseText.textContent = "Player 1 banning";
-  else if (data.phase === "p2") phaseText.textContent = "Player 2 banning";
+  // Ban lists
+  p1List.innerHTML = data.p1.map(h => `<li class="defender-ban">${h}</li>`).join("");
+  p2List.innerHTML = data.p2.map(h => `<li class="attacker-ban">${h}</li>`).join("");
+
+  // Phase text
+  if (data.phase === "defender") phaseText.textContent = "Defender banning";
+  else if (data.phase === "attacker") phaseText.textContent = "Attacker banning";
   else phaseText.textContent = "Ban phase complete";
 
+  // Render hero grid
   heroDiv.innerHTML = "";
   heroes.forEach(hero => {
     const d = document.createElement("div");
     d.className = "hero";
     d.textContent = hero;
 
-    if (data.p1.includes(hero) || data.p2.includes(hero)) {
-      d.classList.add("banned");
+    if (data.p1.includes(hero)) {
+      d.classList.add("banned", "defender"); // Defender banned hero
+    } else if (data.p2.includes(hero)) {
+      d.classList.add("banned", "attacker"); // Attacker banned hero
     }
 
     d.onclick = () => banHero(hero, data);
@@ -86,17 +97,17 @@ function render(data) {
   });
 }
 
-// 🔹 Handle hero banning
+// 🔹 Handle banning
 function banHero(hero, data) {
   if (data.p1.includes(hero) || data.p2.includes(hero)) return;
   if (data.phase !== player) return alert("Not your turn");
 
   const updates = {};
-  if (player === "p1" && data.p1.length < 2) {
+  if (player === "defender" && data.p1.length < 2) {
     updates.p1 = [...data.p1, hero];
-    if (updates.p1.length === 2) updates.phase = "p2";
+    if (updates.p1.length === 2) updates.phase = "attacker";
   } 
-  if (player === "p2" && data.p2.length < 2) {
+  if (player === "attacker" && data.p2.length < 2) {
     updates.p2 = [...data.p2, hero];
     if (updates.p2.length === 2) updates.phase = "done";
   }
