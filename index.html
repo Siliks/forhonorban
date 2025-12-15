@@ -1,3 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>For Honor – Online Pick & Ban</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+    }
+
+    header {
+      padding: 20px;
+      text-align: center;
+      background: #020617;
+      border-bottom: 2px solid #1e293b;
+    }
+
+    h1 { margin: 0; font-size: 2rem; }
+
+    .container { padding: 20px; max-width: 1200px; margin: auto; }
+
+    .room { text-align: center; margin-bottom: 20px; }
+
+    input { padding: 8px; border-radius: 6px; border: none; margin-right: 8px; }
+
+    button { padding: 10px 14px; border-radius: 8px; border: none; cursor: pointer; margin-top: 5px; transition: background 0.2s; }
+    button:hover { opacity: 0.9; }
+
+    #resetBtn { background: #1d4ed8; color: white; }
+
+    .phase { text-align: center; margin-bottom: 20px; font-size: 1.3rem; font-weight: bold; color: #93c5fd; }
+
+    .heroes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; }
+
+    .hero {
+      background: #020617;
+      border: 2px solid #1e293b;
+      padding: 12px;
+      text-align: center;
+      cursor: pointer;
+      border-radius: 10px;
+      user-select: none;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+
+    .hero:hover { transform: scale(1.05); border-color: #60a5fa; }
+
+    .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px; }
+
+    .box { background: #020617; border: 2px solid #1e293b; border-radius: 12px; padding: 15px; }
+    .box h2 { margin-top: 0; text-align: center; color: #93c5fd; }
+
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { padding: 6px 0; border-bottom: 1px solid #1e293b; text-align: center; }
+
+    .defender-ban { color: #60a5fa; }
+    .attacker-ban { color: #ef4444; }
+
+    .hero.banned.defender { background-color: #1e40af; border-color: #60a5fa; color: #93c5fd; cursor: not-allowed; }
+    .hero.banned.attacker { background-color: #991b1b; border-color: #ef4444; color: #fecaca; cursor: not-allowed; }
+
+    #resetIndicator { text-align: center; margin-top: 10px; color: #facc15; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>For Honor – Online Pick & Ban</h1>
+</header>
+
+<div class="container">
+  <div class="room">
+    <input id="roomId" placeholder="Room code" />
+    <button onclick="joinRoom()">Join / Create Room</button>
+    <button id="resetBtn">Reset Bans</button>
+    <div id="resetIndicator"></div>
+  </div>
+
+  <div id="playerIndicator" class="phase"></div>
+  <div id="phase" class="phase">Enter a room code</div>
+
+  <div class="heroes" id="heroes"></div>
+
+  <div class="summary">
+    <div class="box">
+      <h2>Defender Bans</h2>
+      <ul id="p1"></ul>
+    </div>
+    <div class="box">
+      <h2>Attacker Bans</h2>
+      <ul id="p2"></ul>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, onValue, update, runTransaction, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
@@ -16,7 +116,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// DOM elements
+// DOM Elements
 const heroDiv = document.getElementById("heroes");
 const phaseText = document.getElementById("phase");
 const p1List = document.getElementById("p1");
@@ -35,7 +135,7 @@ if (!sessionId) {
   localStorage.setItem("sessionId", sessionId);
 }
 
-// Heroes list
+// Hero list
 const heroes = [
   "Warden","Peacekeeper","Centurion","Black Prior",
   "Conqueror","Lawbringer","Gladiator","Warmonger",
@@ -57,7 +157,6 @@ window.joinRoom = async () => {
   let data = snap.val();
 
   if (!data) {
-    // Create room
     await set(roomRef, { 
       phase: "defender", 
       p1: [], 
@@ -82,7 +181,6 @@ window.joinRoom = async () => {
     if (!data.resetRequests) data.resetRequests = {};
   }
 
-  // Attach real-time listener
   onValue(roomRef, (snap) => {
     const newData = snap.val();
     if (!newData) return;
@@ -183,3 +281,5 @@ function updateResetIndicator(data) {
 resetBtn.addEventListener("click", requestReset);
 
 </script>
+</body>
+</html>
