@@ -140,6 +140,13 @@
       color: #fecaca;
       cursor: not-allowed;
     }
+
+    .reset-indicator {
+      text-align: center;
+      margin-bottom: 10px;
+      color: #facc15;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -157,6 +164,8 @@
 
   <div id="playerIndicator" class="phase"></div>
   <div id="phase" class="phase">Enter a room code</div>
+
+  <div id="resetIndicator" class="reset-indicator"></div>
 
   <div class="heroes" id="heroes"></div>
 
@@ -206,6 +215,7 @@ const phaseText = document.getElementById("phase");
 const p1List = document.getElementById("p1");
 const p2List = document.getElementById("p2");
 const playerIndicator = document.getElementById("playerIndicator");
+const resetIndicator = document.getElementById("resetIndicator");
 
 let room = null;
 let player = null;
@@ -279,6 +289,19 @@ function render(data) {
     d.onclick = () => banHero(hero, data);
     heroDiv.appendChild(d);
   });
+
+  // Update reset indicator
+  const resetRequests = data.resetRequests || {};
+  const clickedNames = Object.keys(resetRequests)
+    .filter(id => resetRequests[id])
+    .map(id => data.players[id] || "Unknown");
+  if (clickedNames.length > 0 && clickedNames.length < 2) {
+    resetIndicator.textContent = `Reset clicked by: ${clickedNames.join(", ")}`;
+  } else if (clickedNames.length === 2) {
+    resetIndicator.textContent = "Both players clicked reset – bans cleared!";
+  } else {
+    resetIndicator.textContent = "";
+  }
 }
 
 function banHero(hero, data) {
@@ -298,7 +321,7 @@ function banHero(hero, data) {
   update(ref(db, `rooms/${room}`), updates);
 }
 
-// Fixed two-player reset
+// Fixed two-player reset with indicator
 async function requestReset() {
   if (!room || !player) return alert("Join a room first");
 
@@ -307,26 +330,22 @@ async function requestReset() {
   const data = snap.val();
   if (!data) return;
 
-  if (!data.players) data.players = {};
-  if (!data.resetRequests) data.resetRequests = {};
+  const resetRequests = { ...(data.resetRequests || {}), [sessionId]: true };
+  const allPlayers = Object.keys(data.players || {});
+  const requested = Object.keys(resetRequests).filter(id => resetRequests[id]);
 
-  // Mark this player's reset request
-  data.resetRequests[sessionId] = true;
+  let updates = { resetRequests };
 
-  // Check if both players requested reset
-  const allPlayers = Object.keys(data.players);
-  const requested = Object.keys(data.resetRequests).filter(id => data.resetRequests[id]);
   if (allPlayers.length === 2 && requested.length === 2) {
-    // Reset bans and phase
-    data.p1 = [];
-    data.p2 = [];
-    data.phase = "defender";
-    data.resetRequests = {};
+    updates.p1 = [];
+    updates.p2 = [];
+    updates.phase = "defender";
+    updates.resetRequests = {};
   }
 
-  await update(roomRef, data);
+  await update(roomRef, updates);
 }
 </script>
 
 </body>
-</html
+</html>
