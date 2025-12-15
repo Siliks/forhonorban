@@ -31,14 +31,16 @@
 </style>
 </head>
 <body>
+
 <header>
   <h1>For Honor – Online Pick & Ban</h1>
 </header>
+
 <div class="container">
   <div class="room">
     <input id="roomId" placeholder="Room code" />
-    <button onclick="joinRoom()">Join / Create Room</button>
-    <button id="resetBtn" onclick="requestReset()">Reset Bans</button>
+    <button id="joinBtn">Join / Create Room</button>
+    <button id="resetBtn">Reset Bans</button>
   </div>
   <div id="playerIndicator" class="phase"></div>
   <div id="phase" class="phase">Enter a room code</div>
@@ -85,6 +87,7 @@ const phaseText = document.getElementById("phase");
 const p1List = document.getElementById("p1");
 const p2List = document.getElementById("p2");
 const playerIndicator = document.getElementById("playerIndicator");
+const joinBtn = document.getElementById("joinBtn");
 const resetBtn = document.getElementById("resetBtn");
 
 let room = null;
@@ -97,8 +100,9 @@ if (!sessionId) {
   localStorage.setItem("sessionId", sessionId);
 }
 
-// Join or create a room
-window.joinRoom = async () => {
+// ------------------- Core Functions -------------------
+
+async function joinRoom() {
   room = document.getElementById("roomId").value.trim();
   if (!room) return alert("Enter a room code");
 
@@ -123,7 +127,6 @@ window.joinRoom = async () => {
     if (!data.p2) data.p2 = [];
   }
 
-  // Real-time updates
   onValue(roomRef, snap => {
     const newData = snap.val();
     if (!newData.p1) newData.p1 = [];
@@ -132,9 +135,8 @@ window.joinRoom = async () => {
   });
 
   render(data);
-};
+}
 
-// Render UI
 function render(data) {
   playerIndicator.textContent = player ? `You are ${player.toUpperCase()}` : "";
   p1List.innerHTML = (data.p1 || []).map(h => `<li class="defender-ban">${h}</li>`).join("");
@@ -156,7 +158,6 @@ function render(data) {
   });
 }
 
-// Ban hero safely with transaction
 function banHero(hero) {
   if (!room || !player) return alert("Join a room first");
 
@@ -183,7 +184,6 @@ function banHero(hero) {
   });
 }
 
-// Reset bans safely with transaction
 async function requestReset() {
   if (!room || !player) return alert("Join a room first");
 
@@ -206,6 +206,11 @@ async function requestReset() {
     alert("Failed to reset bans. Try again.");
   }
 }
+
+// ------------------- Expose functions globally -------------------
+window.joinRoom = joinRoom;
+window.requestReset = requestReset;
+
 </script>
 </body>
 </html>
