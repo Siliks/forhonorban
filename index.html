@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>For Honor – Online Pick & Ban</title>
 <style>
   body { margin: 0; font-family: Arial, Helvetica, sans-serif; background: #0f172a; color: #e5e7eb; }
@@ -28,6 +28,7 @@
   .attacker-ban { color: #ef4444; }
   .hero.banned.defender { background-color: #1e40af; border-color: #60a5fa; color: #93c5fd; cursor: not-allowed; }
   .hero.banned.attacker { background-color: #991b1b; border-color: #ef4444; color: #fecaca; cursor: not-allowed; }
+  .reset-indicator { margin-top: 10px; text-align: center; font-size: 1rem; color: #fbbf24; }
 </style>
 </head>
 <body>
@@ -40,10 +41,11 @@
   <div class="room">
     <input id="roomId" placeholder="Room code" />
     <button id="joinBtn">Join / Create Room</button>
-    <button id="resetBtn">Reset Bans</button>
+    <button id="resetBtn">Request Reset</button>
   </div>
   <div id="playerIndicator" class="phase"></div>
   <div id="phase" class="phase">Enter a room code</div>
+  <div id="resetStatus" class="reset-indicator"></div>
   <div class="heroes" id="heroes"></div>
   <div class="summary">
     <div class="box">
@@ -87,6 +89,7 @@ const phaseText = document.getElementById("phase");
 const p1List = document.getElementById("p1");
 const p2List = document.getElementById("p2");
 const playerIndicator = document.getElementById("playerIndicator");
+const resetStatus = document.getElementById("resetStatus");
 const joinBtn = document.getElementById("joinBtn");
 const resetBtn = document.getElementById("resetBtn");
 
@@ -111,9 +114,9 @@ async function joinRoom() {
   let data = snap.val();
 
   if (!data) {
-    await set(roomRef, { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" } });
+    await set(roomRef, { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" }, resetRequests: {} });
     player = "defender";
-    data = { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" } };
+    data = { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" }, resetRequests: {} };
   } else {
     if (!data.players) data.players = {};
     if (!data.players[sessionId]) {
@@ -125,12 +128,15 @@ async function joinRoom() {
     player = data.players[sessionId];
     if (!data.p1) data.p1 = [];
     if (!data.p2) data.p2 = [];
+    if (!data.resetRequests) data.resetRequests = {};
   }
 
+  // Real-time updates
   onValue(roomRef, snap => {
     const newData = snap.val();
     if (!newData.p1) newData.p1 = [];
     if (!newData.p2) newData.p2 = [];
+    if (!newData.resetRequests) newData.resetRequests = {};
     render(newData);
   });
 
@@ -142,9 +148,8 @@ function render(data) {
   p1List.innerHTML = (data.p1 || []).map(h => `<li class="defender-ban">${h}</li>`).join("");
   p2List.innerHTML = (data.p2 || []).map(h => `<li class="attacker-ban">${h}</li>`).join("");
 
-  if (data.phase === "defender") phaseText.textContent = "Defender banning";
-  else if (data.phase === "attacker") phaseText.textContent = "Attacker banning";
-  else phaseText.textContent = "Ban phase complete";
+  if ((data.p1?.length ?? 0) === 2 && (data.p2?.length ?? 0) === 2) phaseText.textContent = "Ban phase complete";
+  else phaseText.textContent = data.phase === "defender" ? "Defender banning" : "Attacker banning";
 
   heroDiv.innerHTML = "";
   heroes.forEach(hero => {
@@ -156,13 +161,19 @@ function render(data) {
     d.onclick = () => banHero(hero);
     heroDiv.appendChild(d);
   });
+
+  // Reset status display
+  const resetPlayers = Object.keys(data.resetRequests || {});
+  resetStatus.textContent = resetPlayers.length
+    ? `Reset requested by: ${resetPlayers.map(id => data.players[id] || id).join(", ")}`
+    : "";
 }
 
 function banHero(hero) {
   if (!room || !player) return alert("Join a room first");
 
   const roomRef = ref(db, `rooms/${room}`);
-  runTransaction(roomRef, (data) => {
+  runTransaction(roomRef, data => {
     if (!data) return;
     if (!data.p1) data.p1 = [];
     if (!data.p2) data.p2 = [];
@@ -177,7 +188,7 @@ function banHero(hero) {
       if (data.p1.length === 2) data.phase = "attacker";
     } else if (player === "attacker" && data.p2.length < 2) {
       data.p2.push(hero);
-      if (data.p2.length === 2) data.phase = "done";
+      // phase stays as "attacker" for display only
     }
 
     return data;
@@ -186,25 +197,29 @@ function banHero(hero) {
 
 async function requestReset() {
   if (!room || !player) return alert("Join a room first");
-
   const roomRef = ref(db, `rooms/${room}`);
-  try {
-    await runTransaction(roomRef, (data) => {
-      if (!data) return { phase: "defender", p1: [], p2: [], players: { [sessionId]: player } };
+
+  await runTransaction(roomRef, data => {
+    if (!data) return;
+    if (!data.resetRequests) data.resetRequests = {};
+    data.resetRequests[sessionId] = true;
+
+    // Check if both players requested reset
+    const allPlayers = Object.keys(data.players || {});
+    const resetPlayers = Object.keys(data.resetRequests || {});
+    if (allPlayers.length === 2 && resetPlayers.length === 2) {
       data.p1 = [];
       data.p2 = [];
       data.phase = "defender";
-      if (!data.players) data.players = {};
-      data.players[sessionId] = player;
-      return data;
-    });
+      data.resetRequests = {};
+    }
 
-    resetBtn.classList.add("clicked");
-    setTimeout(() => resetBtn.classList.remove("clicked"), 500);
-  } catch (err) {
-    console.error("Reset failed:", err);
-    alert("Failed to reset bans. Try again.");
-  }
+    return data;
+  });
+
+  // Show yellow highlight briefly
+  resetBtn.classList.add("clicked");
+  setTimeout(() => resetBtn.classList.remove("clicked"), 500);
 }
 
 // ------------------- Expose functions globally -------------------
