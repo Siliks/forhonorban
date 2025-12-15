@@ -135,7 +135,7 @@ if (!sessionId) {
   localStorage.setItem("sessionId", sessionId);
 }
 
-// Hero list (original + 4 new characters)
+// Hero list — added the four new characters only
 const heroes = [
   "Warden","Peacekeeper","Centurion","Black Prior",
   "Conqueror","Lawbringer","Gladiator","Warmonger",
@@ -145,7 +145,7 @@ const heroes = [
   "Shinobi","Aramusha","Hitokiri","Kyoshin",
   "Tiandi","Jiang Jun","Nuxia","Shaolin",
   "Pirate","Medjay","Afeera","Ocelotl",
-  "Sohei","Varangian Guard","Khatun","Virtuosa"
+  "Sohei", "Varangian Guard", "Khatun", "Virtuosa"
 ];
 
 // --- JOIN ROOM ---
@@ -158,30 +158,28 @@ window.joinRoom = async () => {
   let data = snap.val();
 
   if (!data) {
-    data = {
-      phase: "defender",
-      p1: [],
-      p2: [],
-      players: { [sessionId]: "defender" },
-      resetRequests: {}
-    };
+    await set(roomRef, { 
+      phase: "defender", 
+      p1: [], 
+      p2: [], 
+      players: { [sessionId]: "defender" }, 
+      resetRequests: {} 
+    });
     player = "defender";
-    await set(roomRef, data);
+    data = { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" }, resetRequests: {} };
   } else {
     if (!data.players) data.players = {};
-    if (!data.resetRequests) data.resetRequests = {};
-    if (!data.p1) data.p1 = [];
-    if (!data.p2) data.p2 = [];
-
     if (!data.players[sessionId]) {
-      if (!Object.values(data.players).includes("defender")) {
-        data.players[sessionId] = "defender";
-      } else if (!Object.values(data.players).includes("attacker")) {
-        data.players[sessionId] = "attacker";
-      } else return alert("Room is full!");
+      if (!Object.values(data.players).includes("defender")) data.players[sessionId] = "defender";
+      else if (!Object.values(data.players).includes("attacker")) data.players[sessionId] = "attacker";
+      else return alert("Room is full!");
       await update(roomRef, { players: data.players });
     }
     player = data.players[sessionId];
+
+    if (!data.p1) data.p1 = [];
+    if (!data.p2) data.p2 = [];
+    if (!data.resetRequests) data.resetRequests = {};
   }
 
   onValue(roomRef, (snap) => {
@@ -251,11 +249,13 @@ function requestReset() {
     data.players[sessionId] = player;
     data.resetRequests[sessionId] = true;
 
-    // Only one player needed to reset
-    data.p1 = [];
-    data.p2 = [];
-    data.phase = "defender";
-    data.resetRequests = {};
+    const allRequested = Object.keys(data.players).every(id => data.resetRequests[id]);
+    if (allRequested) {
+      data.p1 = [];
+      data.p2 = [];
+      data.phase = "defender";
+      data.resetRequests = {};
+    }
 
     return data;
   });
@@ -269,7 +269,7 @@ function updateResetIndicator(data) {
       .filter(Boolean)
       .map(r => r.toUpperCase());
     resetIndicator.textContent = `Players requested reset: ${clickedRoles.join(", ")}`;
-    resetBtn.textContent = "Waiting...";
+    resetBtn.textContent = "Waiting for other player...";
     resetBtn.style.background = "#f59e0b";
   } else {
     resetIndicator.textContent = "";
