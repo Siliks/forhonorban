@@ -50,6 +50,7 @@
       background: #1d4ed8;
       color: white;
       cursor: pointer;
+      margin-top: 5px;
     }
 
     button:hover {
@@ -118,7 +119,6 @@
       text-align: center;
     }
 
-    /* Colored ban list */
     .defender-ban {
       color: #60a5fa;
     }
@@ -127,7 +127,6 @@
       color: #ef4444;
     }
 
-    /* Colored hero grid bans */
     .hero.banned.defender {
       background-color: #1e40af;
       border-color: #60a5fa;
@@ -153,6 +152,7 @@
   <div class="room">
     <input id="roomId" placeholder="Room code" />
     <button onclick="joinRoom()">Join / Create Room</button>
+    <button onclick="requestReset()">Reset Bans</button>
   </div>
 
   <div id="playerIndicator" class="phase"></div>
@@ -190,7 +190,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// Hero list
 const heroes = [
   "Warden","Peacekeeper","Centurion","Black Prior",
   "Conqueror","Lawbringer","Gladiator","Warmonger",
@@ -202,7 +201,6 @@ const heroes = [
   "Pirate","Medjay","Afeera","Ocelotl"
 ];
 
-// DOM references
 const heroDiv = document.getElementById("heroes");
 const phaseText = document.getElementById("phase");
 const p1List = document.getElementById("p1");
@@ -212,14 +210,13 @@ const playerIndicator = document.getElementById("playerIndicator");
 let room = null;
 let player = null;
 
-// Generate unique session ID
+// Session ID
 let sessionId = localStorage.getItem("sessionId");
 if (!sessionId) {
   sessionId = Math.random().toString(36).substring(2, 10);
   localStorage.setItem("sessionId", sessionId);
 }
 
-// Join / create room
 window.joinRoom = async () => {
   room = document.getElementById("roomId").value.trim();
   if (!room) return alert("Enter a room code");
@@ -228,49 +225,38 @@ window.joinRoom = async () => {
   const snap = await get(roomRef);
   let data = snap.val();
 
-  // If room doesn't exist, create it
   if (!data) {
-    await set(roomRef, { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" } });
+    await set(roomRef, { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" }, resetRequests: {} });
     player = "defender";
-    data = { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" } };
+    data = { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" }, resetRequests: {} };
   } else {
     if (!data.players) data.players = {};
+    if (!data.resetRequests) data.resetRequests = {};
 
-    // Assign role if this sessionId is not yet assigned
     if (!data.players[sessionId]) {
-      if (!Object.values(data.players).includes("defender")) {
-        data.players[sessionId] = "defender";
-        player = "defender";
-      } else if (!Object.values(data.players).includes("attacker")) {
-        data.players[sessionId] = "attacker";
-        player = "attacker";
-      } else {
-        return alert("Room is full!");
-      }
+      if (!Object.values(data.players).includes("defender")) data.players[sessionId] = "defender";
+      else if (!Object.values(data.players).includes("attacker")) data.players[sessionId] = "attacker";
+      else return alert("Room is full!");
       await update(roomRef, { players: data.players });
-    } else {
-      player = data.players[sessionId];
     }
+    player = data.players[sessionId];
 
-    // Make sure p1 and p2 exist
     if (!data.p1) data.p1 = [];
     if (!data.p2) data.p2 = [];
   }
 
-  // Listen for updates
   onValue(roomRef, snap => {
     const newData = snap.val();
     if (!newData.p1) newData.p1 = [];
     if (!newData.p2) newData.p2 = [];
     if (!newData.players) newData.players = {};
+    if (!newData.resetRequests) newData.resetRequests = {};
     render(newData);
   });
 
-  // Initial render
   render(data);
 };
 
-// Render UI
 function render(data) {
   playerIndicator.textContent = player ? `You are ${player.toUpperCase()}` : "";
 
@@ -295,7 +281,6 @@ function render(data) {
   });
 }
 
-// Ban hero
 function banHero(hero, data) {
   if ((data.p1 || []).includes(hero) || (data.p2 || []).includes(hero)) return;
   if (data.phase !== player) return alert("Not your turn");
@@ -304,13 +289,36 @@ function banHero(hero, data) {
   if (player === "defender" && (data.p1 || []).length < 2) {
     updates.p1 = [...(data.p1 || []), hero];
     if (updates.p1.length === 2) updates.phase = "attacker";
-  } 
+  }
   if (player === "attacker" && (data.p2 || []).length < 2) {
     updates.p2 = [...(data.p2 || []), hero];
     if (updates.p2.length === 2) updates.phase = "done";
   }
 
   update(ref(db, `rooms/${room}`), updates);
+}
+
+// Two-player reset logic
+async function requestReset() {
+  if (!room || !player) return alert("Join a room first");
+
+  const roomRef = ref(db, `rooms/${room}`);
+  const snap = await get(roomRef);
+  const data = snap.val();
+  if (!data.players) data.players = {};
+
+  const updates = { resetRequests: { ...(data.resetRequests || {}), [sessionId]: true } };
+
+  const allPlayers = Object.values(data.players);
+  const requests = Object.values(updates.resetRequests || {});
+  if (allPlayers.length === 2 && requests.filter(Boolean).length === 2) {
+    updates.p1 = [];
+    updates.p2 = [];
+    updates.phase = "defender";
+    updates.resetRequests = {};
+  }
+
+  await update(roomRef, updates);
 }
 </script>
 
