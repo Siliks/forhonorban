@@ -1,108 +1,17 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>For Honor – Online Pick & Ban</title>
-
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
-      background: #0f172a;
-      color: #e5e7eb;
-    }
-
-    header {
-      padding: 20px;
-      text-align: center;
-      background: #020617;
-      border-bottom: 2px solid #1e293b;
-    }
-
-    h1 { margin: 0; font-size: 2rem; }
-
-    .container { padding: 20px; max-width: 1200px; margin: auto; }
-
-    .room { text-align: center; margin-bottom: 20px; }
-
-    input { padding: 8px; border-radius: 6px; border: none; margin-right: 8px; }
-
-    button { padding: 10px 14px; border-radius: 8px; border: none; cursor: pointer; margin-top: 5px; transition: background 0.2s; }
-    button:hover { opacity: 0.9; }
-
-    #resetBtn { background: #1d4ed8; color: white; }
-
-    .phase { text-align: center; margin-bottom: 20px; font-size: 1.3rem; font-weight: bold; color: #93c5fd; }
-
-    .heroes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; }
-
-    .hero {
-      background: #020617;
-      border: 2px solid #1e293b;
-      padding: 12px;
-      text-align: center;
-      cursor: pointer;
-      border-radius: 10px;
-      user-select: none;
-      transition: transform 0.15s, border-color 0.15s;
-    }
-
-    .hero:hover { transform: scale(1.05); border-color: #60a5fa; }
-
-    .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px; }
-
-    .box { background: #020617; border: 2px solid #1e293b; border-radius: 12px; padding: 15px; }
-    .box h2 { margin-top: 0; text-align: center; color: #93c5fd; }
-
-    ul { list-style: none; padding: 0; margin: 0; }
-    li { padding: 6px 0; border-bottom: 1px solid #1e293b; text-align: center; }
-
-    .defender-ban { color: #60a5fa; }
-    .attacker-ban { color: #ef4444; }
-
-    .hero.banned.defender { background-color: #1e40af; border-color: #60a5fa; color: #93c5fd; cursor: not-allowed; }
-    .hero.banned.attacker { background-color: #991b1b; border-color: #ef4444; color: #fecaca; cursor: not-allowed; }
-
-    #resetIndicator { text-align: center; margin-top: 10px; color: #facc15; font-weight: bold; }
-  </style>
-</head>
-<body>
-
-<header>
-  <h1>For Honor – Online Pick & Ban</h1>
-</header>
-
-<div class="container">
-  <div class="room">
-    <input id="roomId" placeholder="Room code" />
-    <button onclick="joinRoom()">Join / Create Room</button>
-    <button id="resetBtn">Reset Bans</button>
-    <div id="resetIndicator"></div>
-  </div>
-
-  <div id="playerIndicator" class="phase"></div>
-  <div id="phase" class="phase">Enter a room code</div>
-
-  <div class="heroes" id="heroes"></div>
-
-  <div class="summary">
-    <div class="box">
-      <h2>Defender Bans</h2>
-      <ul id="p1"></ul>
-    </div>
-    <div class="box">
-      <h2>Attacker Bans</h2>
-      <ul id="p2"></ul>
-    </div>
-  </div>
-</div>
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, set, onValue, update, runTransaction, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import {
+  getDatabase,
+  ref,
+  set,
+  onValue,
+  update,
+  runTransaction,
+  get
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// Firebase config
+/* ================= FIREBASE ================= */
+
 const firebaseConfig = {
   apiKey: "AIzaSyBeS-SDFEkQ-eh8EeqvI0qK2so020ddfA",
   authDomain: "forhonorban.firebaseapp.com",
@@ -116,7 +25,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// DOM Elements
+/* ================= DOM ================= */
+
 const heroDiv = document.getElementById("heroes");
 const phaseText = document.getElementById("phase");
 const p1List = document.getElementById("p1");
@@ -125,17 +35,19 @@ const playerIndicator = document.getElementById("playerIndicator");
 const resetBtn = document.getElementById("resetBtn");
 const resetIndicator = document.getElementById("resetIndicator");
 
+/* ================= SESSION ================= */
+
 let room = null;
 let player = null;
 
-// Session ID
 let sessionId = localStorage.getItem("sessionId");
 if (!sessionId) {
-  sessionId = Math.random().toString(36).substring(2, 10);
+  sessionId = Math.random().toString(36).slice(2, 10);
   localStorage.setItem("sessionId", sessionId);
 }
 
-// Hero list
+/* ================= HEROES ================= */
+
 const heroes = [
   "Warden","Peacekeeper","Centurion","Black Prior",
   "Conqueror","Lawbringer","Gladiator","Warmonger",
@@ -147,7 +59,8 @@ const heroes = [
   "Pirate","Medjay","Afeera","Ocelotl"
 ];
 
-// --- JOIN ROOM ---
+/* ================= JOIN ROOM ================= */
+
 window.joinRoom = async () => {
   room = document.getElementById("roomId").value.trim();
   if (!room) return alert("Enter a room code");
@@ -157,99 +70,123 @@ window.joinRoom = async () => {
   let data = snap.val();
 
   if (!data) {
-    await set(roomRef, { 
-      phase: "defender", 
-      p1: [], 
-      p2: [], 
-      players: { [sessionId]: "defender" }, 
-      resetRequests: {} 
+    await set(roomRef, {
+      phase: "defender",
+      p1: [],
+      p2: [],
+      players: { [sessionId]: "defender" },
+      resetRequests: {}
     });
     player = "defender";
-    data = { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" }, resetRequests: {} };
   } else {
-    if (!data.players) data.players = {};
+    data.players ??= {};
+
     if (!data.players[sessionId]) {
-      if (!Object.values(data.players).includes("defender")) data.players[sessionId] = "defender";
-      else if (!Object.values(data.players).includes("attacker")) data.players[sessionId] = "attacker";
-      else return alert("Room is full!");
+      if (!Object.values(data.players).includes("defender")) {
+        data.players[sessionId] = "defender";
+      } else if (!Object.values(data.players).includes("attacker")) {
+        data.players[sessionId] = "attacker";
+      } else {
+        return alert("Room is full");
+      }
       await update(roomRef, { players: data.players });
     }
-    player = data.players[sessionId];
 
-    if (!data.p1) data.p1 = [];
-    if (!data.p2) data.p2 = [];
-    if (!data.resetRequests) data.resetRequests = {};
+    player = data.players[sessionId];
   }
 
   onValue(roomRef, (snap) => {
-    const newData = snap.val();
-    if (!newData) return;
-    render(newData);
-    updateResetIndicator(newData);
+    const state = snap.val();
+    if (state) {
+      render(state);
+      updateResetIndicator(state);
+    }
   });
-
-  render(data);
 };
 
-// --- RENDER ---
+/* ================= RENDER ================= */
+
 function render(data) {
-  playerIndicator.textContent = player ? `You are ${player.toUpperCase()}` : "";
+  playerIndicator.textContent = `You are ${player.toUpperCase()}`;
 
-  p1List.innerHTML = (data.p1 || []).map(h => `<li class="defender-ban">${h}</li>`).join("");
-  p2List.innerHTML = (data.p2 || []).map(h => `<li class="attacker-ban">${h}</li>`).join("");
+  p1List.innerHTML = (data.p1 || [])
+    .map(h => `<li class="defender-ban">${h}</li>`).join("");
 
-  phaseText.textContent = 
+  p2List.innerHTML = (data.p2 || [])
+    .map(h => `<li class="attacker-ban">${h}</li>`).join("");
+
+  phaseText.textContent =
     data.phase === "defender" ? "Defender banning" :
     data.phase === "attacker" ? "Attacker banning" :
     "Ban phase complete";
 
   heroDiv.innerHTML = "";
+
   heroes.forEach(hero => {
     const div = document.createElement("div");
     div.className = "hero";
     div.textContent = hero;
 
-    if ((data.p1 || []).includes(hero)) div.classList.add("banned", "defender");
-    if ((data.p2 || []).includes(hero)) div.classList.add("banned", "attacker");
+    const banned =
+      (data.p1 || []).includes(hero) ||
+      (data.p2 || []).includes(hero);
 
-    div.onclick = () => banHero(hero, data);
+    if (banned) div.classList.add("banned");
+
+    if (data.phase !== player || data.phase === "done" || banned) {
+      div.classList.add("disabled");
+    } else {
+      div.onclick = () => banHero(hero);
+    }
+
     heroDiv.appendChild(div);
   });
 }
 
-// --- BAN HERO ---
-function banHero(hero, data) {
-  if ((data.p1 || []).includes(hero) || (data.p2 || []).includes(hero)) return;
-  if (data.phase !== player) return alert("Not your turn");
+/* ================= BAN HERO (SAFE) ================= */
 
-  const updates = {};
-  if (player === "defender" && (data.p1 || []).length < 2) {
-    updates.p1 = [...(data.p1 || []), hero];
-    if (updates.p1.length === 2) updates.phase = "attacker";
-  }
-  if (player === "attacker" && (data.p2 || []).length < 2) {
-    updates.p2 = [...(data.p2 || []), hero];
-    if (updates.p2.length === 2) updates.phase = "done";
-  }
+function banHero(hero) {
+  const roomRef = ref(db, `rooms/${room}`);
 
-  update(ref(db, `rooms/${room}`), updates);
+  runTransaction(roomRef, (data) => {
+    if (!data || data.phase !== player) return data;
+
+    data.p1 ??= [];
+    data.p2 ??= [];
+
+    if (data.p1.includes(hero) || data.p2.includes(hero)) return data;
+
+    if (player === "defender" && data.p1.length < 2) {
+      data.p1.push(hero);
+      if (data.p1.length === 2) data.phase = "attacker";
+    }
+
+    if (player === "attacker" && data.p2.length < 2) {
+      data.p2.push(hero);
+      if (data.p2.length === 2) data.phase = "done";
+    }
+
+    return data;
+  });
 }
 
-// --- RESET ---
+/* ================= RESET ================= */
+
 function requestReset() {
-  if (!room || !player) return alert("Join a room first");
+  if (!room) return;
 
   const roomRef = ref(db, `rooms/${room}`);
-  runTransaction(roomRef, (data) => {
-    if (!data) return data;
-    if (!data.players) data.players = {};
-    if (!data.resetRequests) data.resetRequests = {};
 
-    data.players[sessionId] = player;
+  runTransaction(roomRef, (data) => {
+    if (!data || data.phase !== "done") return data;
+
+    data.resetRequests ??= {};
     data.resetRequests[sessionId] = true;
 
-    const allRequested = Object.keys(data.players).every(id => data.resetRequests[id]);
-    if (allRequested) {
+    const players = Object.keys(data.players || {});
+    const ready = players.every(id => data.resetRequests[id]);
+
+    if (ready) {
       data.p1 = [];
       data.p2 = [];
       data.phase = "defender";
@@ -260,26 +197,25 @@ function requestReset() {
   });
 }
 
-// --- RESET INDICATOR ---
+/* ================= RESET UI ================= */
+
 function updateResetIndicator(data) {
   if (data.resetRequests && Object.keys(data.resetRequests).length > 0) {
-    const clickedRoles = Object.keys(data.resetRequests)
-      .map(id => data.players[id])
-      .filter(Boolean)
-      .map(r => r.toUpperCase());
-    resetIndicator.textContent = `Players requested reset: ${clickedRoles.join(", ")}`;
-    resetBtn.textContent = "Waiting for other player...";
+    const roles = Object.keys(data.resetRequests)
+      .map(id => data.players[id]?.toUpperCase())
+      .filter(Boolean);
+
+    resetIndicator.textContent =
+      `Reset requested by: ${roles.join(", ")}`;
+
+    resetBtn.textContent = "Waiting for other player…";
     resetBtn.style.background = "#f59e0b";
   } else {
     resetIndicator.textContent = "";
     resetBtn.textContent = "Reset Bans";
-    resetBtn.style.background = "#1d4ed8";
+    resetBtn.style.background = "#2563eb";
   }
 }
 
-// --- CONNECT RESET BUTTON ---
 resetBtn.addEventListener("click", requestReset);
-
 </script>
-</body>
-</html>
