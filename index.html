@@ -164,7 +164,6 @@
 
   <div id="playerIndicator" class="phase"></div>
   <div id="phase" class="phase">Enter a room code</div>
-
   <div id="resetIndicator" class="reset-indicator"></div>
 
   <div class="heroes" id="heroes"></div>
@@ -295,8 +294,9 @@ function render(data) {
   const clickedNames = Object.keys(resetRequests)
     .filter(id => resetRequests[id])
     .map(id => data.players[id] || "Unknown");
-  if (clickedNames.length > 0 && clickedNames.length < 2) {
-    resetIndicator.textContent = `Reset clicked by: ${clickedNames.join(", ")}`;
+
+  if (clickedNames.length === 1) {
+    resetIndicator.textContent = `Reset clicked by: ${clickedNames[0]}`;
   } else if (clickedNames.length === 2) {
     resetIndicator.textContent = "Both players clicked reset – bans cleared!";
   } else {
@@ -321,7 +321,7 @@ function banHero(hero, data) {
   update(ref(db, `rooms/${room}`), updates);
 }
 
-// Fixed two-player reset with indicator
+// Fixed two-player reset
 async function requestReset() {
   if (!room || !player) return alert("Join a room first");
 
