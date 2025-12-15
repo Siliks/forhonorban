@@ -298,29 +298,35 @@ function banHero(hero, data) {
   update(ref(db, `rooms/${room}`), updates);
 }
 
-// Two-player reset logic
+// Fixed two-player reset
 async function requestReset() {
   if (!room || !player) return alert("Join a room first");
 
   const roomRef = ref(db, `rooms/${room}`);
   const snap = await get(roomRef);
   const data = snap.val();
+  if (!data) return;
+
   if (!data.players) data.players = {};
+  if (!data.resetRequests) data.resetRequests = {};
 
-  const updates = { resetRequests: { ...(data.resetRequests || {}), [sessionId]: true } };
+  // Mark this player's reset request
+  data.resetRequests[sessionId] = true;
 
-  const allPlayers = Object.values(data.players);
-  const requests = Object.values(updates.resetRequests || {});
-  if (allPlayers.length === 2 && requests.filter(Boolean).length === 2) {
-    updates.p1 = [];
-    updates.p2 = [];
-    updates.phase = "defender";
-    updates.resetRequests = {};
+  // Check if both players requested reset
+  const allPlayers = Object.keys(data.players);
+  const requested = Object.keys(data.resetRequests).filter(id => data.resetRequests[id]);
+  if (allPlayers.length === 2 && requested.length === 2) {
+    // Reset bans and phase
+    data.p1 = [];
+    data.p2 = [];
+    data.phase = "defender";
+    data.resetRequests = {};
   }
 
-  await update(roomRef, updates);
+  await update(roomRef, data);
 }
 </script>
 
 </body>
-</html>
+</html
