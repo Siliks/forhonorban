@@ -61,20 +61,9 @@
       color: white;
     }
 
-    #resetBtn.defenderClicked {
-      background: #3b82f6; /* blue */
-      color: white;
-    }
-
-    #resetBtn.attackerClicked {
-      background: #ef4444; /* red */
-      color: white;
-    }
-
-    #resetBtn.bothClicked {
-      background: #16a34a; /* green */
-      color: white;
-    }
+    #resetBtn.defenderClicked { background: #3b82f6; color: white; }
+    #resetBtn.attackerClicked { background: #ef4444; color: white; }
+    #resetBtn.bothClicked { background: #16a34a; color: white; }
 
     #resetIndicator {
       text-align: center;
@@ -144,27 +133,10 @@
       text-align: center;
     }
 
-    .defender-ban {
-      color: #60a5fa;
-    }
-
-    .attacker-ban {
-      color: #ef4444;
-    }
-
-    .hero.banned.defender {
-      background-color: #1e40af;
-      border-color: #60a5fa;
-      color: #93c5fd;
-      cursor: not-allowed;
-    }
-
-    .hero.banned.attacker {
-      background-color: #991b1b;
-      border-color: #ef4444;
-      color: #fecaca;
-      cursor: not-allowed;
-    }
+    .defender-ban { color: #60a5fa; }
+    .attacker-ban { color: #ef4444; }
+    .hero.banned.defender { background-color: #1e40af; border-color: #60a5fa; color: #93c5fd; cursor: not-allowed; }
+    .hero.banned.attacker { background-color: #991b1b; border-color: #ef4444; color: #fecaca; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -202,7 +174,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, onValue, update, runTransaction, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyBeS-SDFEkQ-eh8EeqvI0qK2so020ddfA",
   authDomain: "forhonorban.firebaseapp.com",
@@ -217,14 +188,10 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 const heroes = [
-  "Warden","Peacekeeper","Centurion","Black Prior",
-  "Conqueror","Lawbringer","Gladiator","Warmonger",
-  "Raider","Berserker","Highlander","Jormungandr",
-  "Valkyrie","Warlord","Shaman",
-  "Kensei","Orochi","Shugoki","Nobushi",
-  "Shinobi","Aramusha","Hitokiri","Kyoshin",
-  "Tiandi","Jiang Jun","Nuxia","Shaolin",
-  "Pirate","Medjay","Afeera","Ocelotl"
+  "Warden","Peacekeeper","Centurion","Black Prior","Conqueror","Lawbringer","Gladiator","Warmonger",
+  "Raider","Berserker","Highlander","Jormungandr","Valkyrie","Warlord","Shaman",
+  "Kensei","Orochi","Shugoki","Nobushi","Shinobi","Aramusha","Hitokiri","Kyoshin",
+  "Tiandi","Jiang Jun","Nuxia","Shaolin","Pirate","Medjay","Afeera","Ocelotl"
 ];
 
 const heroDiv = document.getElementById("heroes");
@@ -237,8 +204,6 @@ const resetIndicator = document.getElementById("resetIndicator");
 
 let room = null;
 let player = null;
-
-// Session ID
 let sessionId = localStorage.getItem("sessionId");
 if (!sessionId) {
   sessionId = Math.random().toString(36).substring(2, 10);
@@ -260,8 +225,6 @@ window.joinRoom = async () => {
   } else {
     if (!data.players) data.players = {};
     if (!data.resetRequests) data.resetRequests = {};
-
-    // Assign role if not in players
     if (!data.players[sessionId]) {
       if (!Object.values(data.players).includes("defender")) data.players[sessionId] = "defender";
       else if (!Object.values(data.players).includes("attacker")) data.players[sessionId] = "attacker";
@@ -269,7 +232,6 @@ window.joinRoom = async () => {
       await update(roomRef, { players: data.players });
     }
     player = data.players[sessionId];
-
     if (!data.p1) data.p1 = [];
     if (!data.p2) data.p2 = [];
   }
@@ -294,41 +256,30 @@ function render(data) {
 
   if (data.phase === "defender") phaseText.textContent = "Defender banning";
   else if (data.phase === "attacker") phaseText.textContent = "Attacker banning";
-  else phaseText.textContent = "Ban phase complete";
+  else if (data.phase === "complete") phaseText.textContent = "Round complete - click Reset to start next round";
 
   heroDiv.innerHTML = "";
   heroes.forEach(hero => {
     const d = document.createElement("div");
     d.className = "hero";
     d.textContent = hero;
-
     if ((data.p1 || []).includes(hero)) d.classList.add("banned", "defender");
     else if ((data.p2 || []).includes(hero)) d.classList.add("banned", "attacker");
-
     d.onclick = () => banHero(hero, data);
     heroDiv.appendChild(d);
   });
 
-  // Reset indicator logic
+  // Reset UI
   const resetRequests = data.resetRequests || {};
-  const clickedPlayers = Object.keys(resetRequests)
-    .filter(id => resetRequests[id])
-    .map(id => data.players[id] || "Unknown");
-
-  resetIndicator.textContent = clickedPlayers.length > 0 ? `Reset clicked by: ${clickedPlayers.join(", ")}` : "";
-
-  // Button color based on clicks
-  resetBtn.classList.remove("defenderClicked", "attackerClicked", "bothClicked");
-  if (clickedPlayers.length === 1) {
-    const firstId = Object.keys(resetRequests).find(id => resetRequests[id]);
-    const firstPlayer = data.players[firstId];
-    resetBtn.classList.add(firstPlayer === "defender" ? "defenderClicked" : "attackerClicked");
-  } else if (clickedPlayers.length >= 2) {
-    resetBtn.classList.add("bothClicked");
-  }
+  const clickedPlayers = Object.keys(resetRequests).filter(id => resetRequests[id]).map(id => data.players[id] || "Unknown");
+  resetIndicator.textContent = clickedPlayers.length ? `Reset clicked by: ${clickedPlayers.join(", ")}` : "";
+  resetBtn.classList.remove("defenderClicked","attackerClicked","bothClicked");
+  if (clickedPlayers.length === 1) resetBtn.classList.add(clickedPlayers[0] === "defender" ? "defenderClicked" : "attackerClicked");
+  else if (clickedPlayers.length >= 2) resetBtn.classList.add("bothClicked");
 }
 
 function banHero(hero, data) {
+  if (data.phase === "complete") return; // lock banning after round
   if ((data.p1 || []).includes(hero) || (data.p2 || []).includes(hero)) return;
   if (data.phase !== player) return alert("Not your turn");
 
@@ -339,9 +290,8 @@ function banHero(hero, data) {
   }
   if (player === "attacker" && (data.p2 || []).length < 2) {
     updates.p2 = [...(data.p2 || []), hero];
-    // remove phase = done to allow reset
+    if (updates.p2.length === 2) updates.phase = "complete"; // lock after both banned
   }
-
   update(ref(db, `rooms/${room}`), updates);
 }
 
@@ -352,20 +302,12 @@ async function requestReset() {
 
   runTransaction(roomRef, (data) => {
     if (!data) return data;
-    if (!data.p1) data.p1 = [];
-    if (!data.p2) data.p2 = [];
-    if (!data.players) data.players = {};
-    if (!data.resetRequests) data.resetRequests = {};
-
-    // Mark player clicked
-    data.players[sessionId] = player;
-    data.resetRequests[sessionId] = true;
-
-    // Reset bans immediately
     data.p1 = [];
     data.p2 = [];
-    data.phase = "defender";
-
+    data.phase = "defender"; // reset phase
+    data.resetRequests = {};  // clear previous clicks
+    if (!data.players) data.players = {};
+    data.players[sessionId] = player;
     return { ...data };
   });
 }
