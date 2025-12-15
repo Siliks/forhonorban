@@ -182,7 +182,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, set, onValue, update, runTransaction, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // Firebase config
 const firebaseConfig = {
@@ -321,29 +321,31 @@ function banHero(hero, data) {
   update(ref(db, `rooms/${room}`), updates);
 }
 
-// Fixed two-player reset
+// Transaction-based two-player reset
 async function requestReset() {
   if (!room || !player) return alert("Join a room first");
 
   const roomRef = ref(db, `rooms/${room}`);
-  const snap = await get(roomRef);
-  const data = snap.val();
-  if (!data) return;
 
-  const resetRequests = { ...(data.resetRequests || {}), [sessionId]: true };
-  const allPlayers = Object.keys(data.players || {});
-  const requested = Object.keys(resetRequests).filter(id => resetRequests[id]);
+  runTransaction(roomRef, (data) => {
+    if (data) {
+      if (!data.players) data.players = {};
+      if (!data.resetRequests) data.resetRequests = {};
 
-  let updates = { resetRequests };
+      data.resetRequests[sessionId] = true;
 
-  if (allPlayers.length === 2 && requested.length === 2) {
-    updates.p1 = [];
-    updates.p2 = [];
-    updates.phase = "defender";
-    updates.resetRequests = {};
-  }
+      const allPlayers = Object.keys(data.players);
+      const requested = Object.keys(data.resetRequests).filter(id => data.resetRequests[id]);
 
-  await update(roomRef, updates);
+      if (allPlayers.length === 2 && requested.length === 2) {
+        data.p1 = [];
+        data.p2 = [];
+        data.phase = "defender";
+        data.resetRequests = {};
+      }
+    }
+    return data;
+  });
 }
 </script>
 
