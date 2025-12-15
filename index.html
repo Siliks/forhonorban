@@ -212,6 +212,13 @@ const playerIndicator = document.getElementById("playerIndicator");
 let room = null;
 let player = null;
 
+// Generate unique session ID
+let sessionId = localStorage.getItem("sessionId");
+if (!sessionId) {
+  sessionId = Math.random().toString(36).substring(2, 10);
+  localStorage.setItem("sessionId", sessionId);
+}
+
 // Join / create room
 window.joinRoom = async () => {
   room = document.getElementById("roomId").value.trim();
@@ -219,52 +226,69 @@ window.joinRoom = async () => {
 
   const roomRef = ref(db, `rooms/${room}`);
   const snap = await get(roomRef);
-  const data = snap.val();
+  let data = snap.val();
 
+  // If room doesn't exist, create it
   if (!data) {
-    await set(roomRef, { phase: "defender", p1: [], p2: [] });
+    await set(roomRef, { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" } });
     player = "defender";
-  } else if (!data.p1 || data.p1.length === 0) {
-    player = "defender";
-  } else if (!data.p2 || data.p2.length === 0) {
-    player = "attacker";
+    data = { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" } };
   } else {
-    return alert("Room is full!");
+    if (!data.players) data.players = {};
+
+    // Assign role if this sessionId is not yet assigned
+    if (!data.players[sessionId]) {
+      if (!Object.values(data.players).includes("defender")) {
+        data.players[sessionId] = "defender";
+        player = "defender";
+      } else if (!Object.values(data.players).includes("attacker")) {
+        data.players[sessionId] = "attacker";
+        player = "attacker";
+      } else {
+        return alert("Room is full!");
+      }
+      await update(roomRef, { players: data.players });
+    } else {
+      player = data.players[sessionId];
+    }
+
+    // Make sure p1 and p2 exist
+    if (!data.p1) data.p1 = [];
+    if (!data.p2) data.p2 = [];
   }
 
-  // Listen for real-time updates
+  // Listen for updates
   onValue(roomRef, snap => {
     const newData = snap.val();
+    if (!newData.p1) newData.p1 = [];
+    if (!newData.p2) newData.p2 = [];
+    if (!newData.players) newData.players = {};
     render(newData);
   });
+
+  // Initial render
+  render(data);
 };
 
 // Render UI
 function render(data) {
-  // Player indicator
   playerIndicator.textContent = player ? `You are ${player.toUpperCase()}` : "";
 
-  // Ban lists
-  p1List.innerHTML = data.p1.map(h => `<li class="defender-ban">${h}</li>`).join("");
-  p2List.innerHTML = data.p2.map(h => `<li class="attacker-ban">${h}</li>`).join("");
+  p1List.innerHTML = (data.p1 || []).map(h => `<li class="defender-ban">${h}</li>`).join("");
+  p2List.innerHTML = (data.p2 || []).map(h => `<li class="attacker-ban">${h}</li>`).join("");
 
-  // Phase text
   if (data.phase === "defender") phaseText.textContent = "Defender banning";
   else if (data.phase === "attacker") phaseText.textContent = "Attacker banning";
   else phaseText.textContent = "Ban phase complete";
 
-  // Hero grid
   heroDiv.innerHTML = "";
   heroes.forEach(hero => {
     const d = document.createElement("div");
     d.className = "hero";
     d.textContent = hero;
 
-    if (data.p1.includes(hero)) {
-      d.classList.add("banned", "defender");
-    } else if (data.p2.includes(hero)) {
-      d.classList.add("banned", "attacker");
-    }
+    if ((data.p1 || []).includes(hero)) d.classList.add("banned", "defender");
+    else if ((data.p2 || []).includes(hero)) d.classList.add("banned", "attacker");
 
     d.onclick = () => banHero(hero, data);
     heroDiv.appendChild(d);
@@ -273,16 +297,16 @@ function render(data) {
 
 // Ban hero
 function banHero(hero, data) {
-  if (data.p1.includes(hero) || data.p2.includes(hero)) return;
+  if ((data.p1 || []).includes(hero) || (data.p2 || []).includes(hero)) return;
   if (data.phase !== player) return alert("Not your turn");
 
   const updates = {};
-  if (player === "defender" && data.p1.length < 2) {
-    updates.p1 = [...data.p1, hero];
+  if (player === "defender" && (data.p1 || []).length < 2) {
+    updates.p1 = [...(data.p1 || []), hero];
     if (updates.p1.length === 2) updates.phase = "attacker";
   } 
-  if (player === "attacker" && data.p2.length < 2) {
-    updates.p2 = [...data.p2, hero];
+  if (player === "attacker" && (data.p2 || []).length < 2) {
+    updates.p2 = [...(data.p2 || []), hero];
     if (updates.p2.length === 2) updates.phase = "done";
   }
 
