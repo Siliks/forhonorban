@@ -15,7 +15,6 @@ input { padding: 8px; border-radius: 6px; border: none; margin-right: 8px; }
 button { padding: 10px 14px; border-radius: 8px; border: none; cursor: pointer; margin-top: 5px; transition: background 0.3s, color 0.3s; }
 button:hover { opacity: 0.9; }
 #resetBtn { background: #1d4ed8; color: white; }
-#resetIndicator { text-align: center; font-weight: bold; margin-top: 5px; }
 .phase { text-align: center; margin-bottom: 20px; font-size: 1.3rem; font-weight: bold; color: #93c5fd; }
 .heroes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; }
 .hero { background: #020617; border: 2px solid #1e293b; padding: 12px; text-align: center; cursor: pointer; border-radius: 10px; user-select: none; transition: transform 0.15s, border-color 0.15s; }
@@ -31,11 +30,7 @@ li { padding: 6px 0; border-bottom: 1px solid #1e293b; text-align: center; }
 .hero.banned.attacker { background-color: #991b1b; border-color: #ef4444; color: #fecaca; cursor: not-allowed; }
 
 /* Glow animation for reset button */
-@keyframes glow {
-  0% { box-shadow: 0 0 0px #fff; }
-  50% { box-shadow: 0 0 15px #facc15; }
-  100% { box-shadow: 0 0 0px #fff; }
-}
+@keyframes glow { 0% { box-shadow: 0 0 0px #fff; } 50% { box-shadow: 0 0 15px #facc15; } 100% { box-shadow: 0 0 0px #fff; } }
 button.glow { animation: glow 0.8s ease-in-out; }
 </style>
 </head>
@@ -49,7 +44,7 @@ button.glow { animation: glow 0.8s ease-in-out; }
 <div class="room">
   <input id="roomId" placeholder="Room code" />
   <button onclick="joinRoom()">Join / Create Room</button>
-  <button id="resetBtn" onclick="requestReset()">Reset Bans</button>
+  <button id="resetBtn" onclick="requestReset()">Reset Draft</button>
 </div>
 
 <div id="playerIndicator" class="phase"></div>
@@ -71,7 +66,7 @@ button.glow { animation: glow 0.8s ease-in-out; }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getDatabase, ref, set, onValue, update, runTransaction, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDatabase, ref, onValue, update, runTransaction, get, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBeS-SDFEkQ-eh8EeqvI0qK2so020ddfA",
@@ -175,25 +170,31 @@ function banHero(hero,data){
   }
   if(player==="attacker"&&(data.p2||[]).length<2){
     updates.p2=[...(data.p2||[]),hero];
-    if(updates.p2.length===2) updates.phase="complete"; // lock
+    if(updates.p2.length===2) updates.phase="complete";
   }
   update(ref(db,`rooms/${room}`),updates);
 }
 
-// Reset button simplified: any single click resets
+// Reset Draft logic applied here
 async function requestReset(){
   if(!room||!player) return alert("Join a room first");
-  const roomRef = ref(db,`rooms/${room}`);
-  runTransaction(roomRef,data=>{
+  const roomRef = ref(db, `rooms/${room}`);
+
+  runTransaction(roomRef, data => {
     if(!data) return data;
-    data.p1=[];
-    data.p2=[];
-    data.phase="defender"; // reset phase
-    if(!data.players) data.players={};
-    data.players[sessionId]=player;
-    return {...data};
-  }).then(()=>{
-    // glow effect for feedback
+    data.p1 = [];
+    data.p2 = [];
+    data.phase = "defender";
+    if(!data.players) data.players = {};
+    data.players[sessionId] = player;
+    return data;
+  }).then(() => {
+    render({
+      p1: [],
+      p2: [],
+      phase: "defender",
+      players: { [sessionId]: player }
+    });
     resetBtn.classList.add("glow");
     setTimeout(()=>resetBtn.classList.remove("glow"),800);
   });
