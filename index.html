@@ -1,198 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>For Honor – Online Pick & Ban</title>
-
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
-      background: #0f172a;
-      color: #e5e7eb;
-    }
-
-    header {
-      padding: 20px;
-      text-align: center;
-      background: #020617;
-      border-bottom: 2px solid #1e293b;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: 2rem;
-    }
-
-    .container {
-      padding: 20px;
-      max-width: 1200px;
-      margin: auto;
-    }
-
-    .room {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    input {
-      padding: 8px;
-      border-radius: 6px;
-      border: none;
-      margin-right: 8px;
-    }
-
-    button {
-      padding: 10px 14px;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-      margin-top: 5px;
-      transition: background 0.2s;
-    }
-
-    button:hover {
-      opacity: 0.9;
-    }
-
-    /* Reset button specific */
-    #resetBtn {
-      background: #1d4ed8;
-      color: white;
-    }
-    #resetBtn.clicked {
-      background: #facc15;
-      color: #000;
-    }
-    #resetBtn.done {
-      background: #16a34a;
-      color: #fff;
-    }
-
-    .phase {
-      text-align: center;
-      margin-bottom: 20px;
-      font-size: 1.3rem;
-      font-weight: bold;
-      color: #93c5fd;
-    }
-
-    .heroes {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 15px;
-    }
-
-    .hero {
-      background: #020617;
-      border: 2px solid #1e293b;
-      padding: 12px;
-      text-align: center;
-      cursor: pointer;
-      border-radius: 10px;
-      user-select: none;
-      transition: transform 0.15s, border-color 0.15s;
-    }
-
-    .hero:hover {
-      transform: scale(1.05);
-      border-color: #60a5fa;
-    }
-
-    .summary {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      margin-top: 30px;
-    }
-
-    .box {
-      background: #020617;
-      border: 2px solid #1e293b;
-      border-radius: 12px;
-      padding: 15px;
-    }
-
-    .box h2 {
-      margin-top: 0;
-      text-align: center;
-      color: #93c5fd;
-    }
-
-    ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    li {
-      padding: 6px 0;
-      border-bottom: 1px solid #1e293b;
-      text-align: center;
-    }
-
-    .defender-ban {
-      color: #60a5fa;
-    }
-
-    .attacker-ban {
-      color: #ef4444;
-    }
-
-    .hero.banned.defender {
-      background-color: #1e40af;
-      border-color: #60a5fa;
-      color: #93c5fd;
-      cursor: not-allowed;
-    }
-
-    .hero.banned.attacker {
-      background-color: #991b1b;
-      border-color: #ef4444;
-      color: #fecaca;
-      cursor: not-allowed;
-    }
-
-    .reset-indicator {
-      text-align: center;
-      margin-bottom: 10px;
-      color: #facc15;
-      font-weight: bold;
-    }
-  </style>
-</head>
-<body>
-
-<header>
-  <h1>For Honor – Online Pick & Ban</h1>
-</header>
-
-<div class="container">
-  <div class="room">
-    <input id="roomId" placeholder="Room code" />
-    <button onclick="joinRoom()">Join / Create Room</button>
-    <button id="resetBtn" onclick="requestReset()">Reset Bans</button>
-  </div>
-
-  <div id="playerIndicator" class="phase"></div>
-  <div id="phase" class="phase">Enter a room code</div>
-  <div id="resetIndicator" class="reset-indicator"></div>
-
-  <div class="heroes" id="heroes"></div>
-
-  <div class="summary">
-    <div class="box">
-      <h2>Defender Bans</h2>
-      <ul id="p1"></ul>
-    </div>
-    <div class="box">
-      <h2>Attacker Bans</h2>
-      <ul id="p2"></ul>
-    </div>
-  </div>
-</div>
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getDatabase, ref, set, onValue, update, runTransaction, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
@@ -227,8 +32,8 @@ const phaseText = document.getElementById("phase");
 const p1List = document.getElementById("p1");
 const p2List = document.getElementById("p2");
 const playerIndicator = document.getElementById("playerIndicator");
-const resetIndicator = document.getElementById("resetIndicator");
 const resetBtn = document.getElementById("resetBtn");
+const resetIndicator = document.getElementById("resetIndicator");
 
 let room = null;
 let player = null;
@@ -249,14 +54,13 @@ window.joinRoom = async () => {
   let data = snap.val();
 
   if (!data) {
+    // Create room if not exists
     await set(roomRef, { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" }, resetRequests: {} });
     player = "defender";
     data = { phase: "defender", p1: [], p2: [], players: { [sessionId]: "defender" }, resetRequests: {} };
   } else {
     if (!data.players) data.players = {};
-    if (!data.resetRequests) data.resetRequests = {};
-
-    // Assign role if not in players
+    // Assign role if not already
     if (!data.players[sessionId]) {
       if (!Object.values(data.players).includes("defender")) data.players[sessionId] = "defender";
       else if (!Object.values(data.players).includes("attacker")) data.players[sessionId] = "attacker";
@@ -267,20 +71,14 @@ window.joinRoom = async () => {
 
     if (!data.p1) data.p1 = [];
     if (!data.p2) data.p2 = [];
+    if (!data.resetRequests) data.resetRequests = {};
   }
 
-  onValue(roomRef, snap => {
-    const newData = snap.val();
-    if (!newData.p1) newData.p1 = [];
-    if (!newData.p2) newData.p2 = [];
-    if (!newData.players) newData.players = {};
-    if (!newData.resetRequests) newData.resetRequests = {};
-    render(newData);
-  });
-
+  setupRoomListener(roomRef);
   render(data);
 };
 
+// Render heroes and ban lists
 function render(data) {
   playerIndicator.textContent = player ? `You are ${player.toUpperCase()}` : "";
 
@@ -303,27 +101,9 @@ function render(data) {
     d.onclick = () => banHero(hero, data);
     heroDiv.appendChild(d);
   });
-
-  // Reset indicator logic
-  const resetRequests = data.resetRequests || {};
-  const clickedNames = Object.keys(resetRequests)
-    .filter(id => resetRequests[id])
-    .map(id => data.players[id] || "Unknown");
-
-  if (clickedNames.length === 0) {
-    resetIndicator.textContent = "";
-    resetBtn.classList.remove("clicked", "done");
-  } else if (clickedNames.length === 1) {
-    resetIndicator.textContent = `Reset clicked by: ${clickedNames[0]}. Waiting for other player…`;
-    if (resetRequests[sessionId]) resetBtn.classList.add("clicked");
-    resetBtn.classList.remove("done");
-  } else if (clickedNames.length === 2) {
-    resetIndicator.textContent = "Both players clicked reset – bans cleared!";
-    resetBtn.classList.remove("clicked");
-    resetBtn.classList.add("done");
-  }
 }
 
+// Ban a hero
 function banHero(hero, data) {
   if ((data.p1 || []).includes(hero) || (data.p2 || []).includes(hero)) return;
   if (data.phase !== player) return alert("Not your turn");
@@ -341,7 +121,7 @@ function banHero(hero, data) {
   update(ref(db, `rooms/${room}`), updates);
 }
 
-// ✅ Fixed Transaction-based Reset with highlight
+// Request reset (requires both players)
 async function requestReset() {
   if (!room || !player) return alert("Join a room first");
 
@@ -349,33 +129,54 @@ async function requestReset() {
 
   runTransaction(roomRef, (data) => {
     if (!data) return data;
-
     if (!data.players) data.players = {};
     if (!data.resetRequests) data.resetRequests = {};
-    if (!data.p1) data.p1 = [];
-    if (!data.p2) data.p2 = [];
 
-    // Ensure player is registered
-    data.players[sessionId] = player;
+    data.players[sessionId] = player;        // ensure player registered
+    data.resetRequests[sessionId] = true;    // mark this player requested reset
 
-    // Mark reset click
-    data.resetRequests[sessionId] = true;
+    const playerIds = Object.keys(data.players);
+    const allRequested = playerIds.every(id => data.resetRequests[id]);
 
-    const allPlayers = Object.keys(data.players);
-    const clicked = Object.keys(data.resetRequests).filter(id => data.resetRequests[id]);
-
-    if (allPlayers.length === 2 && clicked.length === 2) {
-      // Both clicked – reset bans
+    if (allRequested) {
       data.p1 = [];
       data.p2 = [];
       data.phase = "defender";
-      data.resetRequests = {};
+      data.resetRequests = {}; // clear requests after reset
     }
 
-    return { ...data }; // force change detection
+    return data;
+  });
+}
+
+// Listen for real-time updates
+function setupRoomListener(roomRef) {
+  onValue(roomRef, (snap) => {
+    const data = snap.val();
+    if (!data) return;
+
+    render(data);
+
+    // Update reset indicator
+    if (data.resetRequests) {
+      const clickedRoles = Object.keys(data.resetRequests)
+        .map(id => data.players[id])
+        .filter(Boolean);
+
+      if (clickedRoles.length > 0) {
+        resetIndicator.textContent = `Players requested reset: ${clickedRoles.map(r => r.toUpperCase()).join(", ")}`;
+        resetBtn.textContent = "Waiting for other player...";
+        resetBtn.style.background = "#f59e0b"; // orange
+      } else {
+        resetIndicator.textContent = "";
+        resetBtn.textContent = "Reset Bans";
+        resetBtn.style.background = "#1d4ed8"; // blue
+      }
+    } else {
+      resetIndicator.textContent = "";
+      resetBtn.textContent = "Reset Bans";
+      resetBtn.style.background = "#1d4ed8"; // blue
+    }
   });
 }
 </script>
-
-</body>
-</html>
