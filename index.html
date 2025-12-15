@@ -289,19 +289,15 @@ function render(data) {
     heroDiv.appendChild(d);
   });
 
-  // Update reset indicator
+  // Reset indicator logic
   const resetRequests = data.resetRequests || {};
   const clickedNames = Object.keys(resetRequests)
     .filter(id => resetRequests[id])
     .map(id => data.players[id] || "Unknown");
 
-  if (clickedNames.length === 1) {
-    resetIndicator.textContent = `Reset clicked by: ${clickedNames[0]}`;
-  } else if (clickedNames.length === 2) {
-    resetIndicator.textContent = "Both players clicked reset – bans cleared!";
-  } else {
-    resetIndicator.textContent = "";
-  }
+  if (clickedNames.length === 0) resetIndicator.textContent = "";
+  else if (clickedNames.length === 1) resetIndicator.textContent = `Reset clicked by: ${clickedNames[0]}. Waiting for other player…`;
+  else if (clickedNames.length === 2) resetIndicator.textContent = "Both players clicked reset – bans cleared!";
 }
 
 function banHero(hero, data) {
@@ -321,7 +317,7 @@ function banHero(hero, data) {
   update(ref(db, `rooms/${room}`), updates);
 }
 
-// Transaction-based two-player reset
+// Transaction-based Reset
 async function requestReset() {
   if (!room || !player) return alert("Join a room first");
 
@@ -332,12 +328,14 @@ async function requestReset() {
       if (!data.players) data.players = {};
       if (!data.resetRequests) data.resetRequests = {};
 
+      // Mark this player clicked reset
       data.resetRequests[sessionId] = true;
 
       const allPlayers = Object.keys(data.players);
       const requested = Object.keys(data.resetRequests).filter(id => data.resetRequests[id]);
 
       if (allPlayers.length === 2 && requested.length === 2) {
+        // Both clicked – reset bans
         data.p1 = [];
         data.p2 = [];
         data.phase = "defender";
