@@ -256,6 +256,7 @@ window.joinRoom = async () => {
     if (!data.players) data.players = {};
     if (!data.resetRequests) data.resetRequests = {};
 
+    // Assign role if not in players
     if (!data.players[sessionId]) {
       if (!Object.values(data.players).includes("defender")) data.players[sessionId] = "defender";
       else if (!Object.values(data.players).includes("attacker")) data.players[sessionId] = "attacker";
@@ -340,7 +341,7 @@ function banHero(hero, data) {
   update(ref(db, `rooms/${room}`), updates);
 }
 
-// ✅ Fixed Transaction-based Reset with visual highlight
+// ✅ Fixed Transaction-based Reset with highlight
 async function requestReset() {
   if (!room || !player) return alert("Join a room first");
 
@@ -351,28 +352,27 @@ async function requestReset() {
 
     if (!data.players) data.players = {};
     if (!data.resetRequests) data.resetRequests = {};
+    if (!data.p1) data.p1 = [];
+    if (!data.p2) data.p2 = [];
 
-    // Ensure this player is registered
-    if (!data.players[sessionId]) {
-      data.players[sessionId] = player;
-    }
+    // Ensure player is registered
+    data.players[sessionId] = player;
 
-    // Mark this player clicked reset
+    // Mark reset click
     data.resetRequests[sessionId] = true;
 
     const allPlayers = Object.keys(data.players);
-    const requested = Object.keys(data.resetRequests).filter(id => data.resetRequests[id]);
+    const clicked = Object.keys(data.resetRequests).filter(id => data.resetRequests[id]);
 
-    if (allPlayers.length === 2 && requested.length === 2) {
-      // Both players clicked – reset
+    if (allPlayers.length === 2 && clicked.length === 2) {
+      // Both clicked – reset bans
       data.p1 = [];
       data.p2 = [];
       data.phase = "defender";
       data.resetRequests = {};
     }
 
-    // Return a new object to force Firebase to detect changes
-    return { ...data };
+    return { ...data }; // force change detection
   });
 }
 </script>
