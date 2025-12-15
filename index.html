@@ -28,8 +28,6 @@ li { padding: 6px 0; border-bottom: 1px solid #1e293b; text-align: center; }
 .attacker-ban { color: #ef4444; }
 .hero.banned.defender { background-color: #1e40af; border-color: #60a5fa; color: #93c5fd; cursor: not-allowed; }
 .hero.banned.attacker { background-color: #991b1b; border-color: #ef4444; color: #fecaca; cursor: not-allowed; }
-
-/* Glow animation for reset button */
 @keyframes glow { 0% { box-shadow: 0 0 0px #fff; } 50% { box-shadow: 0 0 15px #facc15; } 100% { box-shadow: 0 0 0px #fff; } }
 button.glow { animation: glow 0.8s ease-in-out; }
 </style>
@@ -144,7 +142,7 @@ function render(data) {
 
   if (data.phase === "defender") phaseText.textContent = "Defender banning";
   else if (data.phase === "attacker") phaseText.textContent = "Attacker banning";
-  else if (data.phase === "complete") phaseText.textContent = "Round complete - click Reset to start next round";
+  else if (data.phase === "complete") phaseText.textContent = "Round complete - click Reset to clear bans";
 
   heroDiv.innerHTML = "";
   heroes.forEach(hero => {
@@ -159,7 +157,6 @@ function render(data) {
 }
 
 function banHero(hero,data){
-  if (data.phase === "complete") return;
   if ((data.p1||[]).includes(hero) || (data.p2||[]).includes(hero)) return;
   if (data.phase !== player) return alert("Not your turn");
 
@@ -175,28 +172,30 @@ function banHero(hero,data){
   update(ref(db,`rooms/${room}`),updates);
 }
 
-// Reset Draft logic applied here
+// Reset Draft logic: works even if phase is "complete", keeps phase unchanged
 async function requestReset(){
   if(!room||!player) return alert("Join a room first");
   const roomRef = ref(db, `rooms/${room}`);
 
   runTransaction(roomRef, data => {
     if(!data) return data;
+    // Clear bans
     data.p1 = [];
     data.p2 = [];
-    data.phase = "defender";
-    if(!data.players) data.players = {};
-    data.players[sessionId] = player;
+    // Keep phase unchanged
     return data;
-  }).then(() => {
+  }).then((result) => {
+    const data = result.snapshot.val() || {};
     render({
       p1: [],
       p2: [],
-      phase: "defender",
-      players: { [sessionId]: player }
+      phase: data.phase || "defender",
+      players: data.players || { [sessionId]: player }
     });
+
+    // Glow effect
     resetBtn.classList.add("glow");
-    setTimeout(()=>resetBtn.classList.remove("glow"),800);
+    setTimeout(()=>resetBtn.classList.remove("glow"), 800);
   });
 }
 </script>
